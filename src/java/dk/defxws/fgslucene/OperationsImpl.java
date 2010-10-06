@@ -306,23 +306,30 @@ public class OperationsImpl extends GenericOperationsImpl {
             String indexName,
             StringBuffer resultXml)
     throws java.rmi.RemoteException {
-        try {
-        	deleteTotal = ir.deleteDocuments(new Term("PID", pid));
-		} catch (StaleReaderException e) {
-		    //MIH: Change to avoid Stale Reader
-		    getIndexReader(indexName);
-		    try {
-	            deleteTotal = ir.deleteDocuments(new Term("PID", pid));
-		    } catch (Exception ex) {
-	            throw new GenericSearchException("updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", e);
-		    }
-		} catch (CorruptIndexException e) {
-            throw new GenericSearchException("updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", e);
-		} catch (LockObtainFailedException e) {
-            throw new GenericSearchException("updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", e);
-        } catch (IOException e) {
-            throw new GenericSearchException("updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", e);
-        }
+    	boolean success = false;
+    	int i = 0;
+    	Exception saveEx = null;
+	    //MIH: Change to avoid Stale Reader
+    	while (i < 10 && !success) {
+            try {
+            	deleteTotal = ir.deleteDocuments(new Term("PID", pid));
+            	success = true;
+    		} catch (StaleReaderException e) {
+    			saveEx = e;
+    		    getIndexReader(indexName);
+            } catch (LockObtainFailedException e) {
+                saveEx = e;
+                getIndexReader(indexName);
+    		} catch (CorruptIndexException e) {
+                throw new GenericSearchException("updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", e);
+            } catch (IOException e) {
+                throw new GenericSearchException("updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", e);
+            }
+            i++;
+    	}
+    	if (!success) {
+    		throw new GenericSearchException("updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", saveEx);
+    	}
         resultXml.append("<deletePid pid=\""+pid+"\"/>\n");
     }
     
@@ -594,29 +601,43 @@ public class OperationsImpl extends GenericOperationsImpl {
     private void getIndexWriter(String indexName, boolean create)
     throws GenericSearchException {
     	if (iw != null) return;
-        try {
-            //MIH set maxFieldLength to Integer.MAX_VALUE
-            iw = new IndexWriter(FSDirectory.open(
-                    new File(config.getIndexDir(indexName))), getAnalyzer(config.getAnalyzer(indexName)), create, IndexWriter.MaxFieldLength.UNLIMITED);
-            if (config.getMaxBufferedDocs(indexName)>1)
-            	iw.setMaxBufferedDocs(config.getMaxBufferedDocs(indexName));
-            if (config.getMergeFactor(indexName)>1)
-            	iw.setMergeFactor(config.getMergeFactor(indexName));
-            if (config.getDefaultWriteLockTimeout(indexName)>1)
-            	IndexWriter.setDefaultWriteLockTimeout(config.getDefaultWriteLockTimeout(indexName));
-        } catch (IOException e) {
-        	iw = null;
-            if (e.toString().indexOf("/segments")>-1) {
-                try {
-                    //MIH set maxFieldLength to Integer.MAX_VALUE
-                    iw = new IndexWriter(FSDirectory.open(
-                            new File(config.getIndexDir(indexName))), getAnalyzer(config.getAnalyzer(indexName)), true, IndexWriter.MaxFieldLength.UNLIMITED);
-                } catch (IOException e2) {
-                    throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", e2);
+
+        boolean success = false;
+        int i = 0;
+        Exception saveEx = null;
+        //MIH: Change to avoid Stale Reader
+        while (i < 10 && !success) {
+            try {
+                //MIH set maxFieldLength to Integer.MAX_VALUE
+                iw = new IndexWriter(FSDirectory.open(
+                        new File(config.getIndexDir(indexName))), getAnalyzer(config.getAnalyzer(indexName)), create, IndexWriter.MaxFieldLength.UNLIMITED);
+                if (config.getMaxBufferedDocs(indexName)>1)
+                    iw.setMaxBufferedDocs(config.getMaxBufferedDocs(indexName));
+                if (config.getMergeFactor(indexName)>1)
+                    iw.setMergeFactor(config.getMergeFactor(indexName));
+                if (config.getDefaultWriteLockTimeout(indexName)>1)
+                    IndexWriter.setDefaultWriteLockTimeout(config.getDefaultWriteLockTimeout(indexName));
+                success = true;
+            } catch (LockObtainFailedException e) {
+                saveEx = e;
+            } catch (IOException e) {
+                iw = null;
+                if (e.toString().indexOf("/segments")>-1) {
+                    try {
+                        //MIH set maxFieldLength to Integer.MAX_VALUE
+                        iw = new IndexWriter(FSDirectory.open(
+                                new File(config.getIndexDir(indexName))), getAnalyzer(config.getAnalyzer(indexName)), true, IndexWriter.MaxFieldLength.UNLIMITED);
+                    } catch (IOException e2) {
+                        throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", e2);
+                    }
                 }
+                else
+                    throw new GenericSearchException("IndexWriter new error indexName=" + indexName+ " :\n", e);
             }
-            else
-                throw new GenericSearchException("IndexWriter new error indexName=" + indexName+ " :\n", e);
+            i++;
+        }
+        if (!success) {
+            throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", saveEx);
         }
     	if (logger.isDebugEnabled())
     		logger.debug("getIndexWriter indexName=" + indexName+ " docCount=" + docCount);
