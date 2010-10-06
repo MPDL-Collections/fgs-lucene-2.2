@@ -35,6 +35,7 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermEnum;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.LockObtainFailedException;
+import org.apache.lucene.store.LockReleaseFailedException;
 
 import dk.defxws.fedoragsearch.server.GTransformer;
 import dk.defxws.fedoragsearch.server.GenericOperationsImpl;
@@ -618,7 +619,7 @@ public class OperationsImpl extends GenericOperationsImpl {
                 if (config.getDefaultWriteLockTimeout(indexName)>1)
                     IndexWriter.setDefaultWriteLockTimeout(config.getDefaultWriteLockTimeout(indexName));
                 success = true;
-            } catch (LockObtainFailedException e) {
+            } catch (LockReleaseFailedException e) {
                 saveEx = e;
             } catch (IOException e) {
                 iw = null;
