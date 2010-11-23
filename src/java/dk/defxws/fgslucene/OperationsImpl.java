@@ -621,6 +621,8 @@ public class OperationsImpl extends GenericOperationsImpl {
                 success = true;
             } catch (LockReleaseFailedException e) {
                 saveEx = e;
+            } catch (LockObtainFailedException e) {
+                saveEx = e;
             } catch (IOException e) {
                 iw = null;
                 if (e.toString().indexOf("/segments")>-1) {
@@ -628,12 +630,15 @@ public class OperationsImpl extends GenericOperationsImpl {
                         //MIH set maxFieldLength to Integer.MAX_VALUE
                         iw = new IndexWriter(FSDirectory.open(
                                 new File(config.getIndexDir(indexName))), getAnalyzer(config.getAnalyzer(indexName)), true, IndexWriter.MaxFieldLength.UNLIMITED);
+                        success = true;
                     } catch (IOException e2) {
                         throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", e2);
                     }
                 }
                 else
                     throw new GenericSearchException("IndexWriter new error indexName=" + indexName+ " :\n", e);
+            } catch (RuntimeException e) {
+                saveEx = e;
             }
             i++;
         }
