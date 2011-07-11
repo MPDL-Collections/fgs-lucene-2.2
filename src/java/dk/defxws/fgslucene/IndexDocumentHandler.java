@@ -7,12 +7,16 @@
  */
 package dk.defxws.fgslucene;
 
+import dk.defxws.fedoragsearch.server.utils.Stream;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.io.StringWriter;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
@@ -39,7 +43,7 @@ public class IndexDocumentHandler extends DefaultHandler {
     
     private OperationsImpl owner;
     private String repositoryName;
-    private StringBuffer elementBuffer;
+    private Stream elementBuffer;
     private String pid;
     private String fieldName;
     private Field.Index index;
@@ -58,11 +62,11 @@ public class IndexDocumentHandler extends DefaultHandler {
             OperationsImpl owner, 
             String repositoryName, 
             String pidOrFilename,
-            StringBuffer indexDoc)
+            Stream indexDoc)
     throws GenericSearchException {
         this.owner = owner;
         this.repositoryName = repositoryName;
-        elementBuffer = new StringBuffer();
+        elementBuffer = new Stream();
         SAXParserFactory spf = SAXParserFactory.newInstance();
         spf.setNamespaceAware(true);
         SAXParser parser;
@@ -74,7 +78,7 @@ public class IndexDocumentHandler extends DefaultHandler {
             throw new GenericSearchException("IndexDocument parser error pidOrFilename="+pidOrFilename, e);
         }
         try {
-            parser.parse(new InputSource(new StringReader(indexDoc.toString())), this);
+            parser.parse(new InputSource(indexDoc.getInputStream()), this);
         } catch (IOException e) {
             throw new GenericSearchException("IndexDocument parse error pidOrFilename="+pidOrFilename, e);
         } catch (org.xml.sax.SAXParseException e) {
@@ -156,48 +160,71 @@ public class IndexDocumentHandler extends DefaultHandler {
                     }
             }
         }
-        elementBuffer.setLength(0);
+        if(this.elementBuffer != null) {
+            try {
+                this.elementBuffer.close();
+            } catch(IOException e) {
+                // ignore this
+            }
+        }
+        this.elementBuffer = new Stream();
     }
     
     public void characters(char[] text, int start, int length)
     throws SAXException {
-        elementBuffer.append(text, start, length);
+        try {
+            this.elementBuffer.write(new String(text).getBytes());
+        } catch(IOException e) {
+            throw new SAXException(e);
+        }
     }
     
     public void endElement(String namespaceURI, String simpleName,
             String qualifiedName)  throws SAXException {
-        String ebs = elementBuffer.toString().trim();
+        Stream ebs = elementBuffer;
         if ("IndexField".equals(simpleName)) {
 			if (dsId != null) {
 				try {
-					ebs = owner.getDatastreamText(pid, repositoryName, dsId)
-							.toString();
+                    ebs = owner.getDatastreamText(pid, repositoryName, dsId);
 				} catch (GenericSearchException e) {
 					throw new SAXException(e);
 				}
 			} else if (dsMimetypes != null) {
 				try {
-					ebs = owner.getFirstDatastreamText(pid, repositoryName,
-							dsMimetypes).toString();
+                    ebs = owner.getFirstDatastreamText(pid, repositoryName, dsMimetypes);
 				} catch (GenericSearchException e) {
 					throw new SAXException(e);
 				}
 			} else if (bDefPid != null) {
 				try {
 					ebs = owner.getDisseminationText(pid, repositoryName,
-							bDefPid, methodName, parameters, asOfDateTime)
-							.toString();
+							bDefPid, methodName, parameters, asOfDateTime);
 				} catch (GenericSearchException e) {
 					throw new SAXException(e);
 				}
 			}
-			if (ebs.length() > 0) {
+			if (ebs.size() > 0) {
 				if (logger.isDebugEnabled())
 					logger.debug(fieldName + "=" + ebs);
-				Field f = new Field(fieldName, ebs, store, index, termVector);
-				if (boost > Float.MIN_VALUE)
-					f.setBoost(boost);
-				indexDocument.add(f);
+                try {
+                    ebs.flush();
+                    final char[] buffer = new char[64 * 1024];
+                    final BufferedReader br = new BufferedReader(new InputStreamReader(ebs.getInputStream()));
+                    while(true) {
+                        int n = br.read(buffer, 0, buffer.length);
+                        if(n == - 1) {
+                            break;
+                        }
+                        final String text = new String(buffer, 0, n);
+                        final Field field = new Field(fieldName, text, store, index, termVector);
+                        if (boost > Float.MIN_VALUE) {
+					        field.setBoost(boost);
+                        }
+				        indexDocument.add(field);
+                    }
+                } catch(IOException e) {
+                    throw new SAXException(e);
+                }
 			}
 		}
     }
