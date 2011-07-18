@@ -5,6 +5,8 @@
 
     <property environment="env"/>
 
+    <property name="genericsearch.version" value="2.2"/>
+
     <loadproperties srcFile="lib.properties" /> 
 
     <property name="build.basedir" location="../FgsBuild"/>
@@ -12,10 +14,10 @@
 
 	<property name="build.dir" location="../FgsBuild/webapp" />
 	<property name="plugin.dir" location="${build.dir}/WEB-INF/classes" />
-	<property name="project.dir" location="../FgsBuild/eclipseprojects/FgsLucene" />
+	<property name="project.dir" location="../FgsBuild/eclipseprojects/FgsLucene${genericsearch.version}" />
 
     <path id="compile.classpath">
-      <pathelement path="../FedoraGenericSearch2.2/bin"/>
+      <pathelement path="../FedoraGenericSearch${genericsearch.version}/bin"/>
       <pathelement path="${lib.fedora-client}"/>
       <pathelement path="${lib.log4j}"/>
       <pathelement path="${lib.fedora}"/>
