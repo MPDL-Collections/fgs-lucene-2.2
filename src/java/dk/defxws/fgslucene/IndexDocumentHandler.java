@@ -173,7 +173,7 @@ public class IndexDocumentHandler extends DefaultHandler {
     public void characters(char[] text, int start, int length)
     throws SAXException {
         try {
-            this.elementBuffer.write(new String(text).getBytes());
+            this.elementBuffer.write(new String(text, start, length).getBytes("UTF-8"));
         } catch(IOException e) {
             throw new SAXException(e);
         }
