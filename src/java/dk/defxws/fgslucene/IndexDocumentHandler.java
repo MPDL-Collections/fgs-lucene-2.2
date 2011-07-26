@@ -210,18 +210,19 @@ public class IndexDocumentHandler extends DefaultHandler {
                     ebs.flush();
                     final char[] buffer = new char[64 * 1024];
                     final BufferedReader br = new BufferedReader(new InputStreamReader(ebs.getInputStream()));
+                    StringBuffer text = new StringBuffer();
                     while(true) {
                         int n = br.read(buffer, 0, buffer.length);
                         if(n == - 1) {
                             break;
                         }
-                        final String text = new String(buffer, 0, n);
-                        final Field field = new Field(fieldName, text, store, index, termVector);
-                        if (boost > Float.MIN_VALUE) {
-					        field.setBoost(boost);
-                        }
-				        indexDocument.add(field);
+                        text.append(new String(buffer, 0, n));
                     }
+                    final Field field = new Field(fieldName, text.toString(), store, index, termVector);
+                    if (boost > Float.MIN_VALUE) {
+				        field.setBoost(boost);
+                    }
+			        indexDocument.add(field);
                 } catch(IOException e) {
                     throw new SAXException(e);
                 }
