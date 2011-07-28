@@ -218,7 +218,7 @@ public class IndexDocumentHandler extends DefaultHandler {
                         }
                         text.append(new String(buffer, 0, n));
                     }
-                    final Field field = new Field(fieldName, text.toString(), store, index, termVector);
+                    final Field field = new Field(fieldName, text.toString().trim(), store, index, termVector);
                     if (boost > Float.MIN_VALUE) {
 				        field.setBoost(boost);
                     }
