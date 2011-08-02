@@ -206,10 +206,11 @@ public class IndexDocumentHandler extends DefaultHandler {
 			if (ebs.size() > 0) {
 				if (logger.isDebugEnabled())
 					logger.debug(fieldName + "=" + ebs);
+				BufferedReader br = null;
                 try {
                     ebs.flush();
                     final char[] buffer = new char[64 * 1024];
-                    final BufferedReader br = new BufferedReader(new InputStreamReader(ebs.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(ebs.getInputStream()));
                     StringBuffer text = new StringBuffer();
                     while(true) {
                         int n = br.read(buffer, 0, buffer.length);
@@ -225,6 +226,12 @@ public class IndexDocumentHandler extends DefaultHandler {
 			        indexDocument.add(field);
                 } catch(IOException e) {
                     throw new SAXException(e);
+                } finally {
+                	try {
+						br.close();
+					} catch (IOException e) {
+		                // ignore this
+					}
                 }
 			}
 		}
