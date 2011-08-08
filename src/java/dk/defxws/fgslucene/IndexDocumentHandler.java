@@ -15,7 +15,8 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.xml.sax.Attributes;
@@ -35,7 +36,7 @@ import dk.defxws.fedoragsearch.server.utils.Stream;
  */
 public class IndexDocumentHandler extends DefaultHandler {
     
-    private static final Logger logger = Logger.getLogger(IndexDocumentHandler.class);
+    private static final Logger logger = LoggerFactory.getLogger(IndexDocumentHandler.class);
 
     private Document indexDocument;
     

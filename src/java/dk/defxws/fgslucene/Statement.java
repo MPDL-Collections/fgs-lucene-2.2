@@ -9,7 +9,8 @@ package dk.defxws.fgslucene;
 
 import java.io.IOException;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
@@ -25,7 +26,7 @@ import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
  */
 public class Statement {
     
-    private static final Logger logger = Logger.getLogger(Statement.class);
+    private static final Logger logger = LoggerFactory.getLogger(Statement.class);
 
     private IndexSearcher searcher;
     

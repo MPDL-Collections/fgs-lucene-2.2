@@ -9,7 +9,8 @@ package dk.defxws.fgslucene;
 
 import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * operates on the result set from an operation on the Lucene index 
@@ -20,7 +21,7 @@ import org.apache.log4j.Logger;
 public class ResultSet {
     
     private static final Logger logger =
-        Logger.getLogger(ResultSet.class);
+        LoggerFactory.getLogger(ResultSet.class);
     
     private StringBuffer resultXml;
     

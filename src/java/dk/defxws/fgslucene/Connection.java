@@ -7,7 +7,8 @@
  */
 package dk.defxws.fgslucene;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
 
@@ -19,7 +20,7 @@ import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
  */
 public class Connection {
     
-    private static final Logger logger = Logger.getLogger(Connection.class);
+    private static final Logger logger = LoggerFactory.getLogger(Connection.class);
     
     /**
      */
