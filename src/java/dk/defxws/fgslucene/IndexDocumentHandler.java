@@ -7,27 +7,25 @@
  */
 package dk.defxws.fgslucene;
 
-import dk.defxws.fedoragsearch.server.utils.Stream;
-import org.apache.log4j.Logger;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.StringReader;
-import java.io.StringWriter;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
+import org.apache.log4j.Logger;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
+import de.escidoc.sb.common.Constants;
 import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
+import dk.defxws.fedoragsearch.server.utils.Stream;
 
 /**
  * parses the IndexDocument and generates the Lucene document 
@@ -210,7 +208,7 @@ public class IndexDocumentHandler extends DefaultHandler {
                 try {
                     ebs.flush();
                     final char[] buffer = new char[64 * 1024];
-                    br = new BufferedReader(new InputStreamReader(ebs.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(ebs.getInputStream(), Constants.XML_CHARACTER_ENCODING));
                     StringBuffer text = new StringBuffer();
                     while(true) {
                         int n = br.read(buffer, 0, buffer.length);
