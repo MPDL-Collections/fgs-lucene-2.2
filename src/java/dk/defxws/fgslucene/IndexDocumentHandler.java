@@ -7,6 +7,7 @@
  */
 package dk.defxws.fgslucene;
 
+import de.escidoc.sb.common.Constants;
 import dk.defxws.fedoragsearch.server.utils.Stream;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
@@ -210,7 +211,7 @@ public class IndexDocumentHandler extends DefaultHandler {
                 try {
                     ebs.flush();
                     final char[] buffer = new char[64 * 1024];
-                    br = new BufferedReader(new InputStreamReader(ebs.getInputStream()));
+                    br = new BufferedReader(new InputStreamReader(ebs.getInputStream(), Constants.XML_CHARACTER_ENCODING));
                     StringBuffer text = new StringBuffer();
                     while(true) {
                         int n = br.read(buffer, 0, buffer.length);
