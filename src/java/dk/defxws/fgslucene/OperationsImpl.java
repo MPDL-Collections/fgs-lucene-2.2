@@ -22,8 +22,6 @@ import java.util.TreeSet;
 
 import javax.xml.transform.stream.StreamSource;
 
-import dk.defxws.fedoragsearch.server.utils.IOUtils;
-import dk.defxws.fedoragsearch.server.utils.Stream;
 import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.KeywordAnalyzer;
@@ -32,6 +30,9 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.StaleReaderException;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermEnum;
@@ -39,10 +40,12 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.store.LockReleaseFailedException;
 
+import de.escidoc.sb.common.Constants;
 import dk.defxws.fedoragsearch.server.GTransformer;
 import dk.defxws.fedoragsearch.server.GenericOperationsImpl;
 import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
-
+import dk.defxws.fedoragsearch.server.utils.IOUtils;
+import dk.defxws.fedoragsearch.server.utils.Stream;
 import fedora.server.utilities.StreamUtility;
 
 /**
@@ -427,6 +430,7 @@ public class OperationsImpl extends GenericOperationsImpl {
     		StringBuffer resultXml,
     		String indexDocXslt)
     throws java.rmi.RemoteException {
+    	long time = System.currentTimeMillis();
     	IndexDocumentHandler hdlr = null;
     	String xsltName = indexDocXslt;
     	String[] params = new String[12];
@@ -471,13 +475,20 @@ public class OperationsImpl extends GenericOperationsImpl {
         //MIH: call method getUpdateIndexDocXsltPath
 //      String xsltPath = config.getConfigName()+"/index/"+indexName+"/"+config.getUpdateIndexDocXslt(indexName, xsltName);
         String xsltPath = getUpdateIndexDocXsltPath(xsltName);
+        if (logger.isDebugEnabled()) {
+    		logger.debug("preparing xslt needed " + (System.currentTimeMillis() - time));
+        }
+        time = System.currentTimeMillis();
     	Stream sb = (new GTransformer()).transform(
     			xsltPath, 
     			new StreamSource(foxmlStream),
     			config.getURIResolver(indexName),
     			params);
-    	if (logger.isDebugEnabled())
+    	if (logger.isDebugEnabled()) {
+    		logger.debug("Transformation needed " + (System.currentTimeMillis() - time));
     		logger.debug("IndexDocument=\n"+sb.toString());
+    	}
+        time = System.currentTimeMillis();
     	hdlr = new IndexDocumentHandler(
     			this,
     			repositoryName,
@@ -505,6 +516,11 @@ public class OperationsImpl extends GenericOperationsImpl {
     		}
     	} catch (IOException e) {
     		throw new GenericSearchException("Update error pidOrFilename="+pidOrFilename, e);
+    	} finally {
+            if (logger.isDebugEnabled()) {
+        		logger.debug("writing lucene-index needed " + (System.currentTimeMillis() - time));
+            }
+
     	}
     }
     
@@ -616,14 +632,27 @@ public class OperationsImpl extends GenericOperationsImpl {
         while (i < 10 && !success) {
             try {
                 //MIH set maxFieldLength to Integer.MAX_VALUE
-                iw = new IndexWriter(FSDirectory.open(
-                        new File(config.getIndexDir(indexName))), getAnalyzer(config.getAnalyzer(indexName)), create, IndexWriter.MaxFieldLength.UNLIMITED);
-                if (config.getMaxBufferedDocs(indexName)>1)
-                    iw.setMaxBufferedDocs(config.getMaxBufferedDocs(indexName));
-                if (config.getMergeFactor(indexName)>1)
-                    iw.setMergeFactor(config.getMergeFactor(indexName));
-                if (config.getDefaultWriteLockTimeout(indexName)>1)
-                    IndexWriter.setDefaultWriteLockTimeout(config.getDefaultWriteLockTimeout(indexName));
+                IndexWriterConfig indexWriterConfig = new IndexWriterConfig(
+                        Constants.LUCENE_VERSION, getAnalyzer(config.getAnalyzer(indexName)));
+                    if (create) {
+                        indexWriterConfig.setOpenMode(OpenMode.CREATE);
+                    }
+                    else {
+                        indexWriterConfig.setOpenMode(OpenMode.CREATE_OR_APPEND);
+                    }
+                    if (config.getMaxBufferedDocs(indexName)>1) {
+                        indexWriterConfig.setMaxBufferedDocs(config.getMaxBufferedDocs(indexName));
+                    }
+                    if (config.getMergeFactor(indexName)>1) {
+                        LogByteSizeMergePolicy logMergePolicy = new LogByteSizeMergePolicy();
+                        logMergePolicy.setMergeFactor(config.getMergeFactor(indexName));
+                        indexWriterConfig.setMergePolicy(logMergePolicy);
+                    }
+                    if (config.getDefaultWriteLockTimeout(indexName)>1) {
+                        indexWriterConfig.setWriteLockTimeout(config.getDefaultWriteLockTimeout(indexName));
+                    }
+                    iw = new IndexWriter(FSDirectory.open(
+                        new File(config.getIndexDir(indexName))), indexWriterConfig);
                 success = true;
             } catch (LockReleaseFailedException e) {
                 saveEx = e;
@@ -634,8 +663,10 @@ public class OperationsImpl extends GenericOperationsImpl {
                 if (e.toString().indexOf("/segments")>-1) {
                     try {
                         //MIH set maxFieldLength to Integer.MAX_VALUE
+                        IndexWriterConfig indexWriterConfig = new IndexWriterConfig(
+                                Constants.LUCENE_VERSION, getAnalyzer(config.getAnalyzer(indexName))).setOpenMode(OpenMode.CREATE);
                         iw = new IndexWriter(FSDirectory.open(
-                                new File(config.getIndexDir(indexName))), getAnalyzer(config.getAnalyzer(indexName)), true, IndexWriter.MaxFieldLength.UNLIMITED);
+                                new File(config.getIndexDir(indexName))), indexWriterConfig);
                         success = true;
                     } catch (IOException e2) {
                         throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", e2);
