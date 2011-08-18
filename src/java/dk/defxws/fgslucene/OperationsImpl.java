@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import de.escidoc.sb.common.Constants;
+import dk.defxws.fedoragsearch.server.Config;
 import dk.defxws.fedoragsearch.server.GTransformer;
 import dk.defxws.fedoragsearch.server.GenericOperationsImpl;
 import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
@@ -104,7 +105,7 @@ public class OperationsImpl extends GenericOperationsImpl {
                 config.getSortFields(usingIndexName, sortFields));
         params[12] = "RESULTPAGEXSLT";
         params[13] = resultPageXslt;
-        String xsltPath = config.getConfigName()+"/index/"+usingIndexName+"/"+config.getGfindObjectsResultXslt(usingIndexName, resultPageXslt);
+        String xsltPath = "/index/"+usingIndexName+"/"+config.getGfindObjectsResultXslt(usingIndexName, resultPageXslt);
         Stream stream = (new GTransformer()).transform(
         		xsltPath,
         		resultSet.getResultXml(),
@@ -191,7 +192,7 @@ public class OperationsImpl extends GenericOperationsImpl {
             logger.debug("resultXml="+resultXml);
         params[10] = "RESULTPAGEXSLT";
         params[11] = resultPageXslt;
-        String xsltPath = config.getConfigName()+"/index/"+config.getIndexName(indexName)+"/"+config.getBrowseIndexResultXslt(indexName, resultPageXslt);
+        String xsltPath = "/index/"+config.getIndexName(indexName)+"/"+config.getBrowseIndexResultXslt(indexName, resultPageXslt);
         Stream stream = (new GTransformer()).transform(
         		xsltPath,
                 resultXml,
@@ -206,16 +207,16 @@ public class OperationsImpl extends GenericOperationsImpl {
     throws java.rmi.RemoteException {
         super.getIndexInfo(indexName, resultPageXslt);
         InputStream infoStream =  null;
-        String indexInfoPath = "/"+config.getConfigName()+"/index/"+config.getIndexName(indexName)+"/indexInfo.xml";
+        String indexInfoPath = "/index/"+config.getIndexName(indexName)+"/indexInfo.xml";
         try {
-            infoStream =  OperationsImpl.class.getResourceAsStream(indexInfoPath);
+            infoStream =  Config.getCurrentConfig().getResourceInputStream(indexInfoPath);
             if (infoStream == null) {
                 throw new GenericSearchException("Error "+indexInfoPath+" not found in classpath");
             }
         } catch (IOException e) {
             throw new GenericSearchException("Error "+indexInfoPath+" not found in classpath", e);
         }
-        String xsltPath = config.getConfigName()+"/index/"+config.getIndexName(indexName)+"/"+config.getIndexInfoResultXslt(indexName, resultPageXslt);
+        String xsltPath = "/index/"+config.getIndexName(indexName)+"/"+config.getIndexInfoResultXslt(indexName, resultPageXslt);
         Stream stream = (new GTransformer()).transform(
         		xsltPath,
                 new StreamSource(infoStream),
@@ -295,7 +296,7 @@ public class OperationsImpl extends GenericOperationsImpl {
         params[9] = indexName;
         params[10] = "RESULTPAGEXSLT";
         params[11] = resultPageXslt;
-        String xsltPath = config.getConfigName()+"/index/"+config.getIndexName(indexName)+"/"+config.getUpdateIndexResultXslt(indexName, resultPageXslt);
+        String xsltPath = "/index/"+config.getIndexName(indexName)+"/"+config.getUpdateIndexResultXslt(indexName, resultPageXslt);
         Stream stream = (new GTransformer()).transform(
         		xsltPath,
                 resultXml,
@@ -474,7 +475,7 @@ public class OperationsImpl extends GenericOperationsImpl {
         params[10] = "TRUSTSTOREPASS";
         params[11] = config.getTrustStorePass(repositoryName);
         //MIH: call method getUpdateIndexDocXsltPath
-//      String xsltPath = config.getConfigName()+"/index/"+indexName+"/"+config.getUpdateIndexDocXslt(indexName, xsltName);
+//      String xsltPath = "/index/"+indexName+"/"+config.getUpdateIndexDocXslt(indexName, xsltName);
         String xsltPath = getUpdateIndexDocXsltPath(xsltName);
         if (logger.isDebugEnabled()) {
     		logger.debug("preparing xslt needed " + (System.currentTimeMillis() - time));
