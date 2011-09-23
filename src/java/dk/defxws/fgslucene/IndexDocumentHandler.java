@@ -7,24 +7,22 @@
  */
 package dk.defxws.fgslucene;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
+import java.util.HashMap;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-import de.escidoc.sb.common.Constants;
 import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
 import dk.defxws.fedoragsearch.server.utils.Stream;
 
@@ -56,6 +54,7 @@ public class IndexDocumentHandler extends DefaultHandler {
     private String methodName;
     private String parameters;
     private String asOfDateTime;
+    private HashMap<String, Stream> extractedTexts;
     
     public IndexDocumentHandler(
             OperationsImpl owner, 
@@ -66,6 +65,7 @@ public class IndexDocumentHandler extends DefaultHandler {
         this.owner = owner;
         this.repositoryName = repositoryName;
         elementBuffer = new Stream();
+        extractedTexts = new HashMap<String, Stream>();
         SAXParserFactory spf = SAXParserFactory.newInstance();
         spf.setNamespaceAware(true);
         SAXParser parser;
@@ -184,7 +184,13 @@ public class IndexDocumentHandler extends DefaultHandler {
         if ("IndexField".equals(simpleName)) {
 			if (dsId != null) {
 				try {
-                    ebs = owner.getDatastreamText(pid, repositoryName, dsId);
+					if (extractedTexts.containsKey(dsId)) {
+						ebs = extractedTexts.get(dsId);
+					}
+					else {
+	                    ebs = owner.getDatastreamText(pid, repositoryName, dsId);
+	                    extractedTexts.put(dsId, ebs);
+					}
 				} catch (GenericSearchException e) {
 					throw new SAXException(e);
 				}
@@ -205,19 +211,10 @@ public class IndexDocumentHandler extends DefaultHandler {
 			if (ebs.size() > 0) {
 				if (logger.isDebugEnabled())
 					logger.debug(fieldName + "=" + ebs);
-				BufferedReader br = null;
                 try {
                     ebs.flush();
-                    final char[] buffer = new char[64 * 1024];
-                    br = new BufferedReader(new InputStreamReader(ebs.getInputStream(), Constants.XML_CHARACTER_ENCODING));
                     StringBuffer text = new StringBuffer();
-                    while(true) {
-                        int n = br.read(buffer, 0, buffer.length);
-                        if(n == - 1) {
-                            break;
-                        }
-                        text.append(new String(buffer, 0, n));
-                    }
+                    ebs.writeCacheTo(text);
                     final Field field = new Field(fieldName, text.toString().trim(), store, index, termVector);
                     if (boost > Float.MIN_VALUE) {
 				        field.setBoost(boost);
@@ -225,12 +222,6 @@ public class IndexDocumentHandler extends DefaultHandler {
 			        indexDocument.add(field);
                 } catch(IOException e) {
                     throw new SAXException(e);
-                } finally {
-                	try {
-						br.close();
-					} catch (IOException e) {
-		                // ignore this
-					}
                 }
 			}
 		}
