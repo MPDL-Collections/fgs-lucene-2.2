@@ -477,8 +477,8 @@ public class OperationsImpl extends GenericOperationsImpl {
         String xsltPath = getUpdateIndexDocXsltPath(xsltName);
         if (logger.isDebugEnabled()) {
     		logger.debug("preparing xslt needed " + (System.currentTimeMillis() - time));
+            time = System.currentTimeMillis();
         }
-        time = System.currentTimeMillis();
     	Stream sb = (new GTransformer()).transform(
     			xsltPath, 
     			new StreamSource(foxmlStream),
@@ -487,13 +487,17 @@ public class OperationsImpl extends GenericOperationsImpl {
     	if (logger.isDebugEnabled()) {
     		logger.debug("Transformation needed " + (System.currentTimeMillis() - time));
     		logger.debug("IndexDocument=\n"+sb.toString());
+            time = System.currentTimeMillis();
     	}
-        time = System.currentTimeMillis();
     	hdlr = new IndexDocumentHandler(
     			this,
     			repositoryName,
     			pidOrFilename,
     			sb);
+        if (logger.isDebugEnabled()) {
+    		logger.debug("preparing lucene-fields needed " + (System.currentTimeMillis() - time));
+            time = System.currentTimeMillis();
+        }
     	try {
     		ListIterator li = hdlr.getIndexDocument().getFields().listIterator();
     		if (li.hasNext()) {
