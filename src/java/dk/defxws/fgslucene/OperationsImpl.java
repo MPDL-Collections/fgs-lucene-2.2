@@ -7,7 +7,6 @@
  */
 package dk.defxws.fgslucene;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -417,9 +416,22 @@ public class OperationsImpl extends GenericOperationsImpl {
             StringBuffer resultXml,
             String indexDocXslt)
     throws java.rmi.RemoteException {
+    	
     	if (pid==null || pid.length()<1) return;
-		getFoxmlFromPid(pid, repositoryName);
-        indexDoc(pid, repositoryName, indexName, new ByteArrayInputStream(foxmlRecord), resultXml, indexDocXslt);
+		
+    	File tempFile = getFoxmlFromPid(pid, repositoryName);
+		FileInputStream ins = null;
+		
+		try {
+			ins = new FileInputStream(tempFile);
+		} catch (FileNotFoundException e) {
+			throw new java.rmi.RemoteException("Temporary file '" + tempFile + "' not found.", e);
+		}
+        indexDoc(pid, repositoryName, indexName, ins, resultXml, indexDocXslt);
+
+        if(tempFile != null) {
+        	tempFile.delete();
+        }
     }
     
     private void indexDoc(
