@@ -236,26 +236,29 @@ public class OperationsImpl extends GenericOperationsImpl {
         int initDocCount = 0;
         StringBuffer resultXml = new StringBuffer(); 
         resultXml.append("<luceneUpdateIndex");
-        resultXml.append(" indexName=\""+indexName+"\"");
-        resultXml.append(">\n");
+        resultXml.append(" indexName=\""+indexName+"\">\n");
+
         try {
         	if ("createEmpty".equals(action)) 
         		createEmpty(indexName, resultXml);
         	else {
         		getIndexReader(indexName);
         		initDocCount = docCount;
-        		if ("deletePid".equals(action)) 
+        		if ("deletePid".equals(action)) { 
         			deletePid(value, indexName, resultXml);
+        		}
         		else {
-        			if ("fromPid".equals(action)) 
+        			if ("fromPid".equals(action)) {
 						fromPid(value, repositoryName, indexName, resultXml, indexDocXslt);
+        			}
         			else {
                         getIndexWriter(indexName, false);
-        				if ("fromFoxmlFiles".equals(action)) 
+        				if ("fromFoxmlFiles".equals(action)) { 
         					fromFoxmlFiles(value, repositoryName, indexName, resultXml, indexDocXslt);
-        				else
-        					if ("optimize".equals(action)) 
-                				optimize(indexName, resultXml);
+        				}
+        				else if ("optimize".equals(action)) { 
+                			optimize(indexName, resultXml);
+        				}
         			}
         		}
         	}
@@ -585,7 +588,7 @@ public class OperationsImpl extends GenericOperationsImpl {
         return pfanalyzer;
     }
     
-    private void getIndexReader(String indexName)
+    private void getIndexReader(final String indexName)
     throws GenericSearchException {
 		IndexReader irreopened = null;
 		if (ir != null) {
@@ -637,7 +640,7 @@ public class OperationsImpl extends GenericOperationsImpl {
 		}
     }
     
-    private void getIndexWriter(String indexName, boolean create)
+    private void getIndexWriter(final String indexName, boolean create)
     throws GenericSearchException {
     	if (iw != null) return;
 
@@ -702,12 +705,13 @@ public class OperationsImpl extends GenericOperationsImpl {
     		logger.debug("getIndexWriter indexName=" + indexName+ " docCount=" + docCount);
     }
     
-    private void closeIndexWriter(String indexName)
+    private void closeIndexWriter(final String indexName)
     throws GenericSearchException {
 		if (iw != null) {
             try {
                 iw.close();
             } catch (IOException e) {
+            	logger.error(e.getMessage(), e);
                 throw new GenericSearchException("IndexWriter close error indexName=" + indexName+ " :\n", e);
             } finally {
             	iw = null;
@@ -717,7 +721,7 @@ public class OperationsImpl extends GenericOperationsImpl {
 		}
     }
     
-    private long indexDirSpace(File dir) {
+    private long indexDirSpace(final File dir) {
     	long ids = 0;
         File[] files = dir.listFiles();
         for (int i = 0; i < files.length; i++) {
