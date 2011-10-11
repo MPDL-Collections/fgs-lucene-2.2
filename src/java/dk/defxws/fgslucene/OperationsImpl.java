@@ -369,9 +369,12 @@ public class OperationsImpl extends GenericOperationsImpl {
         if (logger.isDebugEnabled())
             logger.debug("fromFoxmlFiles filePath="+filePath+" repositoryName="+repositoryName+" indexName="+indexName);
         File objectDir = null;
-        if (filePath==null || filePath.equals(""))
+        if (filePath==null || filePath.isEmpty()) {
             objectDir = config.getFedoraObjectDir(repositoryName);
-        else objectDir = new File(filePath);
+        }
+        else {
+        	objectDir = new File(filePath);
+        }
         indexDocs(objectDir, repositoryName, indexName, resultXml, indexDocXslt);
         docCount = docCount-warnCount;
         resultXml.append("<warnCount>"+warnCount+"</warnCount>\n");
