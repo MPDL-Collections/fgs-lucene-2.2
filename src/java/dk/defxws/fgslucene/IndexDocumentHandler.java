@@ -214,6 +214,7 @@ public class IndexDocumentHandler extends DefaultHandler {
                     ebs.flush();
                     StringBuffer text = new StringBuffer();
                     ebs.writeCacheTo(text);
+                    ebs.close();
                     final Field field = new Field(fieldName, text.toString().trim(), store, index, termVector);
                     if (boost > Float.MIN_VALUE) {
 				        field.setBoost(boost);
