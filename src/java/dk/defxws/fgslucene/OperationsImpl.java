@@ -103,7 +103,7 @@ public class OperationsImpl extends GenericOperationsImpl {
         params[12] = "RESULTPAGEXSLT";
         params[13] = resultPageXslt;
         String xsltPath = config.getConfigName()+"/index/"+usingIndexName+"/"+config.getGfindObjectsResultXslt(usingIndexName, resultPageXslt);
-        Stream stream = (new GTransformer()).transform(
+        Stream stream = new GTransformer().transform(
         		xsltPath,
         		resultSet.getResultXml(),
                 params);
@@ -190,7 +190,7 @@ public class OperationsImpl extends GenericOperationsImpl {
         params[10] = "RESULTPAGEXSLT";
         params[11] = resultPageXslt;
         String xsltPath = config.getConfigName()+"/index/"+config.getIndexName(indexName)+"/"+config.getBrowseIndexResultXslt(indexName, resultPageXslt);
-        Stream stream = (new GTransformer()).transform(
+        Stream stream = new GTransformer().transform(
         		xsltPath,
                 resultXml,
                 params);
@@ -297,10 +297,7 @@ public class OperationsImpl extends GenericOperationsImpl {
         params[10] = "RESULTPAGEXSLT";
         params[11] = resultPageXslt;
         String xsltPath = config.getConfigName()+"/index/"+config.getIndexName(indexName)+"/"+config.getUpdateIndexResultXslt(indexName, resultPageXslt);
-        Stream stream = (new GTransformer()).transform(
-        		xsltPath,
-                resultXml,
-                params);
+        Stream stream = new GTransformer().transform(xsltPath, resultXml, params);
         StringBuffer sb = IOUtils.convertStreamToStringBuffer(stream);
         return sb.toString();
     }
@@ -497,14 +494,14 @@ public class OperationsImpl extends GenericOperationsImpl {
     		logger.debug("preparing xslt needed " + (System.currentTimeMillis() - time));
             time = System.currentTimeMillis();
         }
-    	Stream sb = (new GTransformer()).transform(
+    	Stream sb = new GTransformer().transform(
     			xsltPath, 
     			new StreamSource(foxmlStream),
     			config.getURIResolver(indexName),
     			params);
     	if (logger.isDebugEnabled()) {
     		logger.debug("Transformation needed " + (System.currentTimeMillis() - time));
-    		logger.debug("IndexDocument=\n"+sb.toString());
+    		//logger.debug("IndexDocument=\n"+sb.toString());
             time = System.currentTimeMillis();
     	}
     	hdlr = new IndexDocumentHandler(
