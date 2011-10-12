@@ -35,6 +35,8 @@ public class IndexDocumentHandler extends DefaultHandler {
     
     private static final Logger logger = Logger.getLogger(IndexDocumentHandler.class);
 
+    private static final int MAX_DOCUMENT_SIZE = 52428800; // 50 MB
+    
     private Document indexDocument;
     
     private OperationsImpl owner;
@@ -208,21 +210,33 @@ public class IndexDocumentHandler extends DefaultHandler {
 				}
 			}
 			if (ebs.size() > 0) {
-				if (logger.isDebugEnabled())
+				if (logger.isDebugEnabled()) {
 					logger.debug(fieldName + "=" + ebs);
-                try {
-                    ebs.flush();
-                    StringBuffer text = new StringBuffer();
-                    ebs.writeCacheTo(text);
-                    ebs.close();
-                    final Field field = new Field(fieldName, text.toString().trim(), store, index, termVector);
-                    if (boost > Float.MIN_VALUE) {
-				        field.setBoost(boost);
-                    }
-			        indexDocument.add(field);
-                } catch(IOException e) {
-                    throw new SAXException(e);
-                }
+				}
+				if (ebs.size() > MAX_DOCUMENT_SIZE) {
+					logger.error("Document skipped for indexing, because index values are to large ("
+							+ MAX_DOCUMENT_SIZE + " bytes).");
+					try {
+						ebs.close();
+					} catch (IOException e) {
+						throw new SAXException(e); // FIXME
+					}
+				} else {
+					try {
+						ebs.flush();
+						StringBuffer text = new StringBuffer();
+						ebs.writeCacheTo(text);
+						ebs.close();
+						final Field field = new Field(fieldName, text
+								.toString().trim(), store, index, termVector);
+						if (boost > Float.MIN_VALUE) {
+							field.setBoost(boost);
+						}
+						indexDocument.add(field);
+					} catch (IOException e) {
+						throw new SAXException(e); // FIXME
+					}
+				}
 			}
 		}
     }
