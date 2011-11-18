@@ -4,8 +4,8 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="src" path="/FedoraGenericSearch2.2"/>
 	<classpathentry kind="lib" path="/FedoraGenericSearch2.2/lib/fedora-client-3.2.1.jar"/>
-	<classpathentry kind="lib" path="/FedoraGenericSearch2.2/lib/lucene-core-3.3.0.jar"/>
-	<classpathentry kind="lib" path="/FedoraGenericSearch2.2/lib/lucene-highlighter-3.3.0.jar"/>
 	<classpathentry kind="lib" path="/FedoraGenericSearch2.2/lib/escidoc/slf4j-api-1.6.1.jar"/>
+	<classpathentry kind="lib" path="/FedoraGenericSearch2.2/lib/lucene-core-3.4.0.jar"/>
+	<classpathentry kind="lib" path="/FedoraGenericSearch2.2/lib/lucene-highlighter-3.4.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
