@@ -164,6 +164,7 @@ public final class IndexWriterCache {
 	            throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", saveEx);
 	        }
 	        indexWriters.put(indexName, iw);
+	        return iw;
 		}
 		return indexWriters.get(indexName);
 	}
