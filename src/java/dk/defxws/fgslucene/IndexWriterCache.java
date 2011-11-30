@@ -100,69 +100,35 @@ public final class IndexWriterCache {
 	public synchronized IndexWriter getIndexWriter(
 			final String indexName, final boolean create, final Config config) throws GenericSearchException {
 		if (indexWriters.get(indexName) == null) {
-	        boolean success = false;
-	        int i = 0;
-	        Exception saveEx = null;
 	        IndexWriter iw = null;
-	        while (i < 10 && !success) {
-				try {
-					// MIH set maxFieldLength to Integer.MAX_VALUE
-					IndexWriterConfig indexWriterConfig = new IndexWriterConfig(
-							Constants.LUCENE_VERSION,
-							getAnalyzer(config.getAnalyzer(indexName)));
-					if (create) {
-						indexWriterConfig.setOpenMode(OpenMode.CREATE);
-					} else {
-						indexWriterConfig.setOpenMode(OpenMode.CREATE_OR_APPEND);
-					}
-					if (config.getMaxBufferedDocs(indexName) > 1) {
-						indexWriterConfig.setMaxBufferedDocs(config
-								.getMaxBufferedDocs(indexName));
-					}
-					if (config.getMergeFactor(indexName) > 1) {
-						LogByteSizeMergePolicy logMergePolicy = new LogByteSizeMergePolicy();
-						logMergePolicy.setMergeFactor(config
-								.getMergeFactor(indexName));
-						indexWriterConfig.setMergePolicy(logMergePolicy);
-					}
-					if (config.getDefaultWriteLockTimeout(indexName) > 1) {
-						indexWriterConfig.setWriteLockTimeout(config
-								.getDefaultWriteLockTimeout(indexName));
-					}
-					iw = new IndexWriter(FSDirectory.open(new File(config
-							.getIndexDir(indexName))), indexWriterConfig);
-					success = true;
-				} catch (LockReleaseFailedException e) {
-					saveEx = e;
-				} catch (LockObtainFailedException e) {
-					saveEx = e;
-				} catch (IOException e) {
-					iw = null;
-					if (e.toString().indexOf("/segments") > -1) {
-						try {
-							// MIH set maxFieldLength to Integer.MAX_VALUE
-	                        IndexWriterConfig indexWriterConfig = new IndexWriterConfig(
-	                                Constants.LUCENE_VERSION, getAnalyzer(config.getAnalyzer(indexName))).setOpenMode(OpenMode.CREATE);
-	                        iw = new IndexWriter(FSDirectory.open(
-	                                new File(config.getIndexDir(indexName))), indexWriterConfig);
-							iw.close();
-						} catch (IOException e2) {
-							throw new GenericSearchException(
-									"IndexWriter new error, creating index indexName="
-											+ indexName + " :\n", e2);
-						}
-					} else
-						throw new GenericSearchException(
-								"IndexWriter new error indexName=" + indexName
-										+ " :\n", e);
-				} catch (RuntimeException e) {
-					saveEx = e;
-				}
-	            i++;
-	        }
-	        if (!success) {
-	            throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", saveEx);
-	        }
+            try {
+                IndexWriterConfig indexWriterConfig = new IndexWriterConfig(
+                        Constants.LUCENE_VERSION,
+                        getAnalyzer(config.getAnalyzer(indexName)));
+                 if (create) {
+                    indexWriterConfig.setOpenMode(OpenMode.CREATE);
+                } else {
+                    indexWriterConfig.setOpenMode(OpenMode.CREATE_OR_APPEND);
+                }
+                if (config.getMaxBufferedDocs(indexName) > 1) {
+                    indexWriterConfig.setMaxBufferedDocs(config
+                            .getMaxBufferedDocs(indexName));
+                }
+                if (config.getMergeFactor(indexName) > 1) {
+                    LogByteSizeMergePolicy logMergePolicy = new LogByteSizeMergePolicy();
+                    logMergePolicy.setMergeFactor(config
+                            .getMergeFactor(indexName));
+                    indexWriterConfig.setMergePolicy(logMergePolicy);
+                }
+                if (config.getDefaultWriteLockTimeout(indexName) > 1) {
+                    indexWriterConfig.setWriteLockTimeout(config
+                            .getDefaultWriteLockTimeout(indexName));
+                }
+                iw = new IndexWriter(FSDirectory.open(new File(config
+                        .getIndexDir(indexName))), indexWriterConfig);
+            } catch (Exception e) {
+                throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", e);
+            }
 	        indexWriters.put(indexName, iw);
 	        return iw;
 		}
