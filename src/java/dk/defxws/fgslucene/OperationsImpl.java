@@ -24,9 +24,6 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.analysis.PerFieldAnalyzerWrapper;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.index.CorruptIndexException;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.Term;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,7 +132,8 @@ public class OperationsImpl extends GenericOperationsImpl {
             String repositoryName,
             String indexName,
             String indexDocXslt,
-            String resultPageXslt)
+            String resultPageXslt,
+            boolean commit)
     throws java.rmi.RemoteException {
         insertTotal = 0;
         updateTotal = 0;
@@ -151,16 +149,20 @@ public class OperationsImpl extends GenericOperationsImpl {
         	else {
         		initDocCount = docCount;
         		if ("deletePid".equals(action)) 
-        			deletePid(value, indexName, resultXml);
+        			deletePid(value, indexName, resultXml, commit);
         		else {
         			if ("fromPid".equals(action)) 
-						fromPid(value, repositoryName, indexName, resultXml, indexDocXslt);
+						fromPid(value, repositoryName, indexName, resultXml, indexDocXslt, commit);
         			else {
         				if ("fromFoxmlFiles".equals(action)) 
-        					fromFoxmlFiles(value, repositoryName, indexName, resultXml, indexDocXslt);
+        					fromFoxmlFiles(value, repositoryName, indexName, resultXml, indexDocXslt, commit);
         				else
         					if ("optimize".equals(action)) 
                 				optimize(indexName, resultXml);
+        					else
+        						if("commitIndexWrites".equals(action)) {
+        							commitIndexWrites(indexName, resultXml);
+        						}
         			}
         		}
         	}
@@ -208,44 +210,32 @@ public class OperationsImpl extends GenericOperationsImpl {
             String indexName,
             StringBuffer resultXml)
     throws java.rmi.RemoteException {
-        IndexWriterCache.getInstance().closeIndexWriter(indexName);
-        IndexWriterCache.getInstance().getIndexWriter(indexName, true, config);
-        IndexWriterCache.getInstance().closeIndexWriter(indexName);
+        IndexWriterCache.getInstance().createEmpty(indexName, config);
         resultXml.append("<createEmpty/>\n");
     }
     
-    private void deletePid(
-            String pid,
-            String indexName,
-            StringBuffer resultXml)
-    throws java.rmi.RemoteException {
-    	
-        try {
-        	IndexWriterCache.getInstance()
-        		.getIndexWriter(indexName, false, config)
-        		.deleteDocuments(new Term("PID", pid));
-        	deleteTotal = 1;
-		} catch (Exception e) {
-			IndexWriterCache.getInstance().closeIndexWriter(indexName);
-            throw new GenericSearchException("updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", e);
-        }
-        resultXml.append("<deletePid pid=\""+pid+"\"/>\n");
-    }
+	private void deletePid(String pid, String indexName, StringBuffer resultXml, boolean commit)
+			throws java.rmi.RemoteException {
+
+		IndexWriterCache.getInstance().delete(indexName, config, pid, commit);
+		deleteTotal = 1;
+		resultXml.append("<deletePid pid=\"" + pid + "\"/>\n");
+	}
     
     private void optimize(
             String indexName,
     		StringBuffer resultXml)
     throws java.rmi.RemoteException {
-    	try {
-    		IndexWriterCache.getInstance().getIndexWriter(indexName, false, config).optimize();
-		} catch (CorruptIndexException e) {
-			IndexWriterCache.getInstance().closeIndexWriter(indexName);
-            throw new GenericSearchException("updateIndex optimize error indexName="+indexName+"\n", e);
-        } catch (IOException e) {
-			IndexWriterCache.getInstance().closeIndexWriter(indexName);
-            throw new GenericSearchException("updateIndex optimize error indexName="+indexName+"\n", e);
-    	}
+		IndexWriterCache.getInstance().optimize(indexName, config);
         resultXml.append("<optimize/>\n");
+    }
+    
+    private void commitIndexWrites(
+            String indexName,
+            StringBuffer resultXml)
+    throws java.rmi.RemoteException {
+        IndexWriterCache.getInstance().commit(indexName, config);
+        resultXml.append("<commit/>");
     }
     
     private void fromFoxmlFiles(
@@ -253,7 +243,8 @@ public class OperationsImpl extends GenericOperationsImpl {
             String repositoryName,
             String indexName,
             StringBuffer resultXml,
-            String indexDocXslt)
+            String indexDocXslt,
+    		boolean commit)
     throws java.rmi.RemoteException {
         if (logger.isDebugEnabled())
             logger.debug("fromFoxmlFiles filePath="+filePath+" repositoryName="+repositoryName+" indexName="+indexName);
@@ -261,7 +252,7 @@ public class OperationsImpl extends GenericOperationsImpl {
         if (filePath==null || filePath.equals(""))
             objectDir = config.getFedoraObjectDir(repositoryName);
         else objectDir = new File(filePath);
-        indexDocs(objectDir, repositoryName, indexName, resultXml, indexDocXslt);
+        indexDocs(objectDir, repositoryName, indexName, resultXml, indexDocXslt, commit);
         docCount = docCount-warnCount;
         resultXml.append("<warnCount>"+warnCount+"</warnCount>\n");
         resultXml.append("<docCount>"+docCount+"</docCount>\n");
@@ -272,7 +263,8 @@ public class OperationsImpl extends GenericOperationsImpl {
             String repositoryName,
             String indexName,
             StringBuffer resultXml, 
-            String indexDocXslt)
+            String indexDocXslt,
+            boolean commit)
     throws java.rmi.RemoteException
     {
 		if (file.isHidden()) return;
@@ -284,13 +276,13 @@ public class OperationsImpl extends GenericOperationsImpl {
                     logger.info("updateIndex fromFoxmlFiles "+file.getAbsolutePath()
                     		+" indexDirSpace="+indexDirSpace(new File(config.getIndexDir(indexName)))
                     		+" docCount="+docCount);
-                indexDocs(new File(file, files[i]), repositoryName, indexName, resultXml, indexDocXslt);
+                indexDocs(new File(file, files[i]), repositoryName, indexName, resultXml, indexDocXslt, commit);
             }
         }
         else
         {
             try {
-                indexDoc(file.getName(), repositoryName, indexName, new FileInputStream(file), resultXml, indexDocXslt);
+                indexDoc(file.getName(), repositoryName, indexName, new FileInputStream(file), resultXml, indexDocXslt, commit);
             } catch (RemoteException e) {
                 resultXml.append("<warning no=\""+(++warnCount)+"\">file="+file.getAbsolutePath()+" exception="+e.toString()+"</warning>\n");
                 logger.warn("<warning no=\""+(warnCount)+"\">file="+file.getAbsolutePath()+" exception="+e.toString()+"</warning>");
@@ -306,11 +298,12 @@ public class OperationsImpl extends GenericOperationsImpl {
             String repositoryName,
             String indexName,
             StringBuffer resultXml,
-            String indexDocXslt)
+            String indexDocXslt,
+            boolean commit)
     throws java.rmi.RemoteException {
     	if (pid==null || pid.length()<1) return;
 		getFoxmlFromPid(pid, repositoryName);
-        indexDoc(pid, repositoryName, indexName, new ByteArrayInputStream(foxmlRecord), resultXml, indexDocXslt);
+        indexDoc(pid, repositoryName, indexName, new ByteArrayInputStream(foxmlRecord), resultXml, indexDocXslt, commit);
     }
     
     private void indexDoc(
@@ -319,7 +312,8 @@ public class OperationsImpl extends GenericOperationsImpl {
     		String indexName,
     		InputStream foxmlStream,
     		StringBuffer resultXml,
-    		String indexDocXslt)
+    		String indexDocXslt,
+    		boolean commit)
     throws java.rmi.RemoteException {
     	long time = System.currentTimeMillis();
     	IndexDocumentHandler hdlr = null;
@@ -392,8 +386,7 @@ public class OperationsImpl extends GenericOperationsImpl {
     	try {
     		ListIterator li = hdlr.getIndexDocument().getFields().listIterator();
     		if (li.hasNext()) {
-    			IndexWriter iw = IndexWriterCache.getInstance().getIndexWriter(indexName, false, config);
-                iw.updateDocument(new Term("PID", hdlr.getPid()), hdlr.getIndexDocument());
+    			IndexWriterCache.getInstance().update(indexName, config, hdlr.getPid(), hdlr.getIndexDocument(), commit);
     				updateTotal++;
         			resultXml.append("<updated>"+hdlr.getPid()+"</updated>\n");
     			StringBuffer untokenizedFields = new StringBuffer(config.getUntokenizedFields(indexName));
@@ -404,13 +397,12 @@ public class OperationsImpl extends GenericOperationsImpl {
     					config.setUntokenizedFields(indexName, untokenizedFields.toString());
     				}
     			}
-    			logger.info("IndexDocument="+hdlr.getPid()+" docCount="+iw.numDocs());
+    			logger.info("IndexDocument="+hdlr.getPid());
     		}
     		else {
     			logger.warn("IndexDocument "+hdlr.getPid()+" does not contain any IndexFields!!! RepositoryName="+repositoryName+" IndexName="+indexName);
     		}
     	} catch (IOException e) {
-    		IndexWriterCache.getInstance().closeIndexWriter(indexName);
     		throw new GenericSearchException("Update error pidOrFilename="+pidOrFilename, e);
     	} finally {
             if (logger.isDebugEnabled()) {

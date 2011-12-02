@@ -34,14 +34,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.LogByteSizeMergePolicy;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.store.LockObtainFailedException;
-import org.apache.lucene.store.LockReleaseFailedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,6 +86,132 @@ public final class IndexWriterCache {
     }
 
     /**
+     * delete document with given PID in index with given indexName.
+     * 
+     * @param indexName
+     *            name of index to open.
+     * @param config
+     *            gsearch config-Object.
+     * @param pid
+     *            PID to update.
+     * @param commit
+     *            wether to commit indexWriter or not.
+     * @throws GenericSearchException
+     *             e
+     */
+	public void delete(
+			final String indexName, 
+			final Config config, 
+			final String pid, 
+			final boolean commit)
+			throws GenericSearchException {
+		try {
+        	getIndexWriter(indexName, false, config).deleteDocuments(new Term("PID", pid));
+		} catch (IOException e) {
+			throw new GenericSearchException(
+					"updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", e);
+		} finally {
+            if (commit) {
+                closeIndexWriter(indexName);
+            }
+		}
+	}
+
+    /**
+     * update document with given PID in index with given indexName.
+     * 
+     * @param indexName
+     *            name of index to open.
+     * @param config
+     *            gsearch config-Object.
+     * @param pid
+     *            PID to update.
+     * @param doc
+     *            Update-Document.
+     * @param commit
+     *            wether to commit indexWriter or not.
+     * @throws GenericSearchException
+     *             e
+     */
+	public void update(
+			final String indexName, 
+			final Config config, 
+			final String pid, 
+			final Document doc, 
+			final boolean commit)
+			throws GenericSearchException {
+		try {
+        	getIndexWriter(indexName, false, config).updateDocument(new Term("PID", pid), doc);
+		} catch (IOException e) {
+			throw new GenericSearchException(e.getMessage());
+		} finally {
+            if (commit) {
+                closeIndexWriter(indexName);
+            }
+		}
+	}
+
+    /**
+     * optimize index for given indexName.
+     * 
+     * @param indexName
+     *            name of index to open.
+     * @param config
+     *            gsearch config-Object.
+     * @throws GenericSearchException
+     *             e
+     */
+	public void optimize(final String indexName, final Config config)
+			throws GenericSearchException {
+		try {
+			getIndexWriter(indexName, false, config).optimize();
+		} catch (IOException e) {
+			throw new GenericSearchException(
+					"updateIndex optimize error indexName="+indexName+"\n", e);
+		} finally {
+            closeIndexWriter(indexName);
+		}
+	}
+
+    /**
+     * commit IndexWriter to persist to File.
+     * 
+     * @param indexName
+     *            name of index to open.
+     * @param config
+     *            gsearch config-Object.
+     * @throws GenericSearchException
+     *             e
+     */
+	public void commit(final String indexName, final Config config)
+			throws GenericSearchException {
+		try {
+			closeIndexWriter(indexName);
+		} catch (IOException e) {
+			throw new GenericSearchException(
+					"commit error indexName="+indexName+"\n", e);
+		}
+	}
+
+    /**
+     * create empty index for given indexName.
+     * 
+     * @param indexName
+     *            name of index to open.
+     * @param config
+     *            gsearch config-Object.
+     * @throws GenericSearchException
+     *             e
+     */
+	public void createEmpty(
+			final String indexName, final Config config)
+			throws GenericSearchException {
+        closeIndexWriter(indexName);
+        getIndexWriter(indexName, true, config);
+        closeIndexWriter(indexName);
+	}
+
+    /**
      * get IndexWriter for given indexPath and write it into
      * cache.
      * 
@@ -97,7 +222,7 @@ public final class IndexWriterCache {
      * @throws GenericSearchException
      *             e
      */
-	public synchronized IndexWriter getIndexWriter(
+	private synchronized IndexWriter getIndexWriter(
 			final String indexName, final boolean create, final Config config) throws GenericSearchException {
 		if (indexWriters.get(indexName) == null) {
 	        IndexWriter iw = null;
@@ -113,6 +238,10 @@ public final class IndexWriterCache {
                 if (config.getMaxBufferedDocs(indexName) > 1) {
                     indexWriterConfig.setMaxBufferedDocs(config
                             .getMaxBufferedDocs(indexName));
+                } else if (config.getRamBufferSize(indexName) 
+                		!= IndexWriterConfig.DEFAULT_RAM_BUFFER_SIZE_MB) {
+                    indexWriterConfig.setRAMBufferSizeMB(config
+                            .getRamBufferSize(indexName));
                 }
                 if (config.getMergeFactor(indexName) > 1) {
                     LogByteSizeMergePolicy logMergePolicy = new LogByteSizeMergePolicy();
@@ -127,6 +256,7 @@ public final class IndexWriterCache {
                 iw = new IndexWriter(FSDirectory.open(new File(config
                         .getIndexDir(indexName))), indexWriterConfig);
             } catch (Exception e) {
+            	iw = null;
                 throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", e);
             }
 	        indexWriters.put(indexName, iw);
@@ -143,7 +273,7 @@ public final class IndexWriterCache {
      * @throws GenericSearchException
      *             e
      */
-	public synchronized void closeIndexWriter(
+	private synchronized void closeIndexWriter(
 			final String indexName)
 			throws GenericSearchException {
 		try {
@@ -160,21 +290,20 @@ public final class IndexWriterCache {
 	}
 
     /**
-     * get IndexReader for given indexPath.
+     * commits changes in IndexWriter for given indexPath.
      * 
-     * @param indexName
-     *            name of index to open.
-     * @param config
-     *            gsearch config-Object.
+     * @param iw
+     *            IndexWriter to commit.
      * @throws GenericSearchException
      *             e
      */
-	public synchronized IndexReader getIndexReader(
+	private synchronized void commitIndexWriter(
 			final String indexName, final Config config)
 			throws GenericSearchException {
 		try {
-			return IndexReader.open(getIndexWriter(indexName, false, config), false);
+			getIndexWriter(indexName, false, config).commit();
 		} catch (IOException e) {
+			closeIndexWriter(indexName);
 			throw new GenericSearchException(e.getMessage());
 		}
 	}
