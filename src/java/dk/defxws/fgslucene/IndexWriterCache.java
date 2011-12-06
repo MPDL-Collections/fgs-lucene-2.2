@@ -112,7 +112,7 @@ public final class IndexWriterCache {
 					"updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", e);
 		} finally {
             if (commit) {
-                closeIndexWriter(indexName);
+                commitIndexWriter(indexName, config);
             }
 		}
 	}
@@ -146,7 +146,7 @@ public final class IndexWriterCache {
 			throw new GenericSearchException(e.getMessage());
 		} finally {
             if (commit) {
-                closeIndexWriter(indexName);
+                commitIndexWriter(indexName, config);
             }
 		}
 	}
@@ -186,7 +186,7 @@ public final class IndexWriterCache {
 	public void commit(final String indexName, final Config config)
 			throws GenericSearchException {
 		try {
-			closeIndexWriter(indexName);
+            commitIndexWriter(indexName, config);
 		} catch (IOException e) {
 			throw new GenericSearchException(
 					"commit error indexName="+indexName+"\n", e);
