@@ -173,16 +173,16 @@ public class IndexDocumentHandler extends DefaultHandler {
 					ebs = owner.getDatastreamText(pid, repositoryName, dsId)
 							.toString();
 				} catch (GenericSearchException e) {
-					logger.error(e.getMessage());
-					throw new SAXException(e);
+					logger.error(e.getMessage(), e);
+					throw new SAXException(e.getMessage(), e);
 				}
 			} else if (dsMimetypes != null) {
 				try {
 					ebs = owner.getFirstDatastreamText(pid, repositoryName,
 							dsMimetypes).toString();
 				} catch (GenericSearchException e) {
-					logger.error(e.getMessage());
-					throw new SAXException(e);
+					logger.error(e.getMessage(), e);
+					throw new SAXException(e.getMessage(), e);
 				}
 			} else if (bDefPid != null) {
 				try {
@@ -190,8 +190,8 @@ public class IndexDocumentHandler extends DefaultHandler {
 							bDefPid, methodName, parameters, asOfDateTime)
 							.toString();
 				} catch (GenericSearchException e) {
-					logger.error(e.getMessage());
-					throw new SAXException(e);
+					logger.error(e.getMessage(), e);
+					throw new SAXException(e.getMessage(), e);
 				}
 			}
 			if (ebs.length() > 0) {
