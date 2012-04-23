@@ -199,8 +199,8 @@ public class IndexDocumentHandler extends DefaultHandler {
 				try {
                     ebs = owner.getFirstDatastreamText(pid, repositoryName, dsMimetypes);
 				} catch (GenericSearchException e) {
-					logger.error(e.getMessage());
-					throw new SAXException(e);
+					logger.error(e.getMessage(), e);
+					throw new SAXException(e.getMessage(), e);
 				}
 			} else if (bDefPid != null) {
 				try {
