@@ -41,6 +41,7 @@ import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.MMapDirectory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -238,23 +239,38 @@ public final class IndexWriterCache {
                 if (config.getMaxBufferedDocs(indexName) > 1) {
                     indexWriterConfig.setMaxBufferedDocs(config
                             .getMaxBufferedDocs(indexName));
-                } else if (config.getRamBufferSize(indexName) 
+                } 
+                if (config.getRamBufferSize(indexName) 
                 		!= IndexWriterConfig.DEFAULT_RAM_BUFFER_SIZE_MB) {
                     indexWriterConfig.setRAMBufferSizeMB(config
                             .getRamBufferSize(indexName));
                 }
-                if (config.getMergeFactor(indexName) > 1) {
-                    LogByteSizeMergePolicy logMergePolicy = new LogByteSizeMergePolicy();
-                    logMergePolicy.setMergeFactor(config
-                            .getMergeFactor(indexName));
-                    indexWriterConfig.setMergePolicy(logMergePolicy);
-                }
+				if (config.getMergeFactor(indexName) > 1 || config.getMaxMergeDocs(indexName) > 1 || config.getMaxMergeMb(indexName) > 1) {
+					LogByteSizeMergePolicy logMergePolicy = new LogByteSizeMergePolicy();
+					if (config.getMergeFactor(indexName) > 1) {
+						logMergePolicy.setMergeFactor(config
+								.getMergeFactor(indexName));
+					}
+					if (config.getMaxMergeDocs(indexName) > 1) {
+						logMergePolicy.setMaxMergeDocs(config
+								.getMaxMergeDocs(indexName));
+					}
+					if (config.getMaxMergeMb(indexName) > 1) {
+						logMergePolicy.setMaxMergeMB(config
+								.getMaxMergeMb(indexName));
+					}
+					indexWriterConfig.setMergePolicy(logMergePolicy);
+				}
                 if (config.getDefaultWriteLockTimeout(indexName) > 1) {
                     indexWriterConfig.setWriteLockTimeout(config
                             .getDefaultWriteLockTimeout(indexName));
                 }
                 iw = new IndexWriter(FSDirectory.open(new File(config
                         .getIndexDir(indexName))), indexWriterConfig);
+				if (config.getMaxChunkSize(indexName) > 1) {
+					((MMapDirectory)iw.getDirectory()).setMaxChunkSize(config
+							.getMaxChunkSize(indexName));
+				}
             } catch (Exception e) {
             	iw = null;
                 throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", e);
