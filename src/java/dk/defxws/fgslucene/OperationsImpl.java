@@ -38,6 +38,7 @@ import org.apache.lucene.index.TermEnum;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.store.LockReleaseFailedException;
+import org.apache.lucene.store.MMapDirectory;
 
 import de.escidoc.sb.common.Constants;
 import dk.defxws.fedoragsearch.server.GTransformer;
@@ -650,29 +651,45 @@ public class OperationsImpl extends GenericOperationsImpl {
         //MIH: Change to avoid Stale Reader
         while (i < 10 && !success) {
             try {
-                //MIH set maxFieldLength to Integer.MAX_VALUE
-                IndexWriterConfig indexWriterConfig = new IndexWriterConfig(
-                        Constants.LUCENE_VERSION, getAnalyzer(config.getAnalyzer(indexName)));
-                    if (create) {
-                        indexWriterConfig.setOpenMode(OpenMode.CREATE);
-                    }
-                    else {
-                        indexWriterConfig.setOpenMode(OpenMode.CREATE_OR_APPEND);
-                    }
-                    if (config.getMaxBufferedDocs(indexName)>1) {
-                        indexWriterConfig.setMaxBufferedDocs(config.getMaxBufferedDocs(indexName));
-                    }
-                    if (config.getMergeFactor(indexName)>1) {
-                        LogByteSizeMergePolicy logMergePolicy = new LogByteSizeMergePolicy();
-                        logMergePolicy.setMergeFactor(config.getMergeFactor(indexName));
-                        indexWriterConfig.setMergePolicy(logMergePolicy);
-                    }
-                    if (config.getDefaultWriteLockTimeout(indexName)>1) {
-                        indexWriterConfig.setWriteLockTimeout(config.getDefaultWriteLockTimeout(indexName));
-                    }
-                    iw = new IndexWriter(FSDirectory.open(
-                        new File(config.getIndexDir(indexName))), indexWriterConfig);
-                success = true;
+				IndexWriterConfig indexWriterConfig = new IndexWriterConfig(
+						Constants.LUCENE_VERSION,
+						getAnalyzer(config.getAnalyzer(indexName)));
+				if (create) {
+					indexWriterConfig.setOpenMode(OpenMode.CREATE);
+				} else {
+					indexWriterConfig.setOpenMode(OpenMode.CREATE_OR_APPEND);
+				}
+				if (config.getMaxBufferedDocs(indexName) > 1) {
+					indexWriterConfig.setMaxBufferedDocs(config
+							.getMaxBufferedDocs(indexName));
+				}
+				if (config.getMergeFactor(indexName) > 1 || config.getMaxMergeDocs(indexName) > 1 || config.getMaxMergeMb(indexName) > 1) {
+					LogByteSizeMergePolicy logMergePolicy = new LogByteSizeMergePolicy();
+					if (config.getMergeFactor(indexName) > 1) {
+						logMergePolicy.setMergeFactor(config
+								.getMergeFactor(indexName));
+					}
+					if (config.getMaxMergeDocs(indexName) > 1) {
+						logMergePolicy.setMaxMergeDocs(config
+								.getMaxMergeDocs(indexName));
+					}
+					if (config.getMaxMergeMb(indexName) > 1) {
+						logMergePolicy.setMaxMergeMB(config
+								.getMaxMergeMb(indexName));
+					}
+					indexWriterConfig.setMergePolicy(logMergePolicy);
+				}
+				if (config.getDefaultWriteLockTimeout(indexName) > 1) {
+					indexWriterConfig.setWriteLockTimeout(config
+							.getDefaultWriteLockTimeout(indexName));
+				}
+				iw = new IndexWriter(FSDirectory.open(new File(config
+						.getIndexDir(indexName))), indexWriterConfig);
+				if (config.getMaxChunkSize(indexName) > 1) {
+					((MMapDirectory)iw.getDirectory()).setMaxChunkSize(config
+							.getMaxChunkSize(indexName));
+				}
+				success = true;
             } catch (LockReleaseFailedException e) {
                 saveEx = e;
             } catch (LockObtainFailedException e) {
