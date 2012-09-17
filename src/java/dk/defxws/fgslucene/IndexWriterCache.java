@@ -265,15 +265,13 @@ public final class IndexWriterCache {
                     indexWriterConfig.setWriteLockTimeout(config
                             .getDefaultWriteLockTimeout(indexName));
                 }
+				iw = new IndexWriter(FSDirectory.open(new File(config
+						.getIndexDir(indexName))), indexWriterConfig);
 				if (config.getMaxChunkSize(indexName) > 1) {
-	                iw = new IndexWriter(MMapDirectory.open(new File(config
-	                        .getIndexDir(indexName))), indexWriterConfig);
-					((MMapDirectory)iw.getDirectory()).setMaxChunkSize(config
-							.getMaxChunkSize(indexName));
-				}
-				else {
-	                iw = new IndexWriter(FSDirectory.open(new File(config
-	                        .getIndexDir(indexName))), indexWriterConfig);
+					if (iw.getDirectory() instanceof MMapDirectory){
+						((MMapDirectory)iw.getDirectory()).setMaxChunkSize(config
+								.getMaxChunkSize(indexName));
+					}
 				}
             } catch (Exception e) {
             	iw = null;
