@@ -31,11 +31,11 @@ import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.StaleReaderException;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermEnum;
+import org.apache.lucene.index.IndexWriterConfig.OpenMode;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.store.LockReleaseFailedException;
@@ -538,6 +538,38 @@ public class OperationsImpl extends GenericOperationsImpl {
         return analyzer;
     }
     
+    public FSDirectory getDirectoryImplementation(String dirImplClassName, File file)
+    throws GenericSearchException {
+        FSDirectory directory = null;
+        if (logger.isDebugEnabled())
+            logger.debug("directoryImplementationClassName=" + dirImplClassName);
+        try {
+            Class dirImplClass = Class.forName(dirImplClassName);
+            if (logger.isDebugEnabled())
+                logger.debug("directoryImplementationClass=" + dirImplClass.toString());
+            directory = (FSDirectory) dirImplClass.getConstructor(new Class[] {File.class})
+            .newInstance(new Object[] {file});
+            if (logger.isDebugEnabled())
+                logger.debug("directory=" + directory.toString());
+        } catch (ClassNotFoundException e) {
+            throw new GenericSearchException(dirImplClassName
+                    + ": class not found.\n", e);
+        } catch (InstantiationException e) {
+            throw new GenericSearchException(dirImplClassName
+                    + ": instantiation error.\n", e);
+        } catch (IllegalAccessException e) {
+            throw new GenericSearchException(dirImplClassName
+                    + ": instantiation error.\n", e);
+        } catch (InvocationTargetException e) {
+            throw new GenericSearchException(dirImplClassName
+                    + ": instantiation error.\n", e);
+        } catch (NoSuchMethodException e) {
+            throw new GenericSearchException(dirImplClassName
+                    + ": instantiation error.\n", e);
+        }
+        return directory;
+    }
+    
     public Analyzer getQueryAnalyzer(String indexName)
     throws GenericSearchException {
         Analyzer analyzer = getAnalyzer(config.getAnalyzer(indexName));
@@ -645,8 +677,18 @@ public class OperationsImpl extends GenericOperationsImpl {
 					indexWriterConfig.setWriteLockTimeout(config
 							.getDefaultWriteLockTimeout(indexName));
 				}
-				iw = new IndexWriter(FSDirectory.open(new File(config
-						.getIndexDir(indexName))), indexWriterConfig);
+				if (config.getLuceneDirectoryImplementation(indexName) != null) {
+					//Initialize IndexWriter with configured FSDirectory
+					FSDirectory directory = getDirectoryImplementation(config
+							.getLuceneDirectoryImplementation(indexName),
+							new File(config.getIndexDir(indexName)));
+					iw = new IndexWriter(directory, indexWriterConfig);
+				}
+				else {
+					//Initialize IndexWriter with default FSDirectory
+					iw = new IndexWriter(FSDirectory.open(new File(config
+							.getIndexDir(indexName))), indexWriterConfig);
+				}
 				if (config.getMaxChunkSize(indexName) > 1) {
 					if (iw.getDirectory() instanceof MMapDirectory){
 						((MMapDirectory)iw.getDirectory()).setMaxChunkSize(config
