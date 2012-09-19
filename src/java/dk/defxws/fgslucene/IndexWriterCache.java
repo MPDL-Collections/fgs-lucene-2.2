@@ -30,6 +30,7 @@ package dk.defxws.fgslucene;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -265,8 +266,18 @@ public final class IndexWriterCache {
                     indexWriterConfig.setWriteLockTimeout(config
                             .getDefaultWriteLockTimeout(indexName));
                 }
-				iw = new IndexWriter(FSDirectory.open(new File(config
-						.getIndexDir(indexName))), indexWriterConfig);
+				if (config.getLuceneDirectoryImplementation(indexName) != null) {
+					//Initialize IndexWriter with configured FSDirectory
+					FSDirectory directory = getDirectoryImplementation(config
+							.getLuceneDirectoryImplementation(indexName),
+							new File(config.getIndexDir(indexName)));
+					iw = new IndexWriter(directory, indexWriterConfig);
+				}
+				else {
+					//Initialize IndexWriter with default FSDirectory
+					iw = new IndexWriter(FSDirectory.open(new File(config
+							.getIndexDir(indexName))), indexWriterConfig);
+				}
 				if (config.getMaxChunkSize(indexName) > 1) {
 					if (iw.getDirectory() instanceof MMapDirectory){
 						((MMapDirectory)iw.getDirectory()).setMaxChunkSize(config
@@ -355,6 +366,38 @@ public final class IndexWriterCache {
                     + ": instantiation error.\n", e);
         }
         return analyzer;
+    }
+    
+    public FSDirectory getDirectoryImplementation(String dirImplClassName, File file)
+    throws GenericSearchException {
+        FSDirectory directory = null;
+        if (logger.isDebugEnabled())
+            logger.debug("directoryImplementationClassName=" + dirImplClassName);
+        try {
+            Class dirImplClass = Class.forName(dirImplClassName);
+            if (logger.isDebugEnabled())
+                logger.debug("directoryImplementationClass=" + dirImplClass.toString());
+            directory = (FSDirectory) dirImplClass.getConstructor(new Class[] {File.class})
+            .newInstance(new Object[] {file});
+            if (logger.isDebugEnabled())
+                logger.debug("directory=" + directory.toString());
+        } catch (ClassNotFoundException e) {
+            throw new GenericSearchException(dirImplClassName
+                    + ": class not found.\n", e);
+        } catch (InstantiationException e) {
+            throw new GenericSearchException(dirImplClassName
+                    + ": instantiation error.\n", e);
+        } catch (IllegalAccessException e) {
+            throw new GenericSearchException(dirImplClassName
+                    + ": instantiation error.\n", e);
+        } catch (InvocationTargetException e) {
+            throw new GenericSearchException(dirImplClassName
+                    + ": instantiation error.\n", e);
+        } catch (NoSuchMethodException e) {
+            throw new GenericSearchException(dirImplClassName
+                    + ": instantiation error.\n", e);
+        }
+        return directory;
     }
     
 }
