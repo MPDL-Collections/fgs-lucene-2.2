@@ -643,9 +643,24 @@ public class OperationsImpl extends GenericOperationsImpl {
 			}
 		} else {
 	        try {
-				ir = IndexReader.open(
-				        FSDirectory.open(
-				                new File(config.getIndexDir(indexName))), false);
+				if (config.getLuceneDirectoryImplementation(indexName) != null) {
+					//Initialize IndexReader with configured FSDirectory
+					FSDirectory directory = getDirectoryImplementation(config
+							.getLuceneDirectoryImplementation(indexName),
+							new File(config.getIndexDir(indexName)));
+					ir = IndexReader.open(directory, false);
+				}
+				else {
+					//Initialize IndexReader with default FSDirectory
+					ir = IndexReader.open(FSDirectory.open(new File(config
+							.getIndexDir(indexName))), false);
+				}
+				if (config.getMaxChunkSize(indexName) > 1) {
+					if (ir.directory() instanceof MMapDirectory){
+						((MMapDirectory)ir.directory()).setMaxChunkSize(config
+								.getMaxChunkSize(indexName));
+					}
+				}
 			} catch (CorruptIndexException e) {
 				throw new GenericSearchException("IndexReader open error indexName=" + indexName+ " :\n", e);
 			} catch (IOException e) {
