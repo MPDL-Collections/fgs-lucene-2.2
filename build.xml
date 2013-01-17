@@ -3,7 +3,6 @@
 <project name="FedoraGenericSearch" default="pluginbuild" basedir=".">
 	<description>Fedora Generic Search Service plugin for the Lucene engine</description>
 
-    <property name="escidoc.version" value="-1.4"/>
     <property environment="env"/>
 
     <property name="genericsearch.version" value="2.2"/>
@@ -18,7 +17,7 @@
 	<property name="project.dir" location="../FgsBuild/eclipseprojects/FgsLucene${genericsearch.version}" />
 
     <path id="compile.classpath">
-      <pathelement path="../fedora-genericsearch-2.2${escidoc.version}/bin"/>
+      <pathelement path="../fedora-genericsearch-2.2/bin"/>
       <pathelement path="${lib.fedora-client}"/>
       <pathelement path="${lib.log4j}"/>
       <pathelement path="${lib.fedora}"/>
