@@ -58,195 +58,201 @@ import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
  */
 public final class IndexWriterCache {
 
-    private static IndexWriterCache instance = null;
+	private static IndexWriterCache instance = null;
 
-    private static final Logger logger = 
-    	LoggerFactory.getLogger(IndexWriterCache.class);
-    
-    /** Holds IndexWriter for each index. */
-    private Map<String, IndexWriter> indexWriters = 
-                        new HashMap<String, IndexWriter>();
+	private static final Logger logger = LoggerFactory
+			.getLogger(IndexWriterCache.class);
 
-    /**
-     * private Constructor for Singleton.
-     * 
-     */
-    private IndexWriterCache() {
-    }
+	/** Holds IndexWriter for each index. */
+	private Map<String, IndexWriter> indexWriters = new HashMap<String, IndexWriter>();
 
-    /**
-     * Only initialize Object once. Check for old objects in cache.
-     * 
-     * @return IndexWriterCache IndexWriterCache
-     * 
-     */
-    public static synchronized IndexWriterCache getInstance() {
-        if (instance == null) {
-            instance = new IndexWriterCache();
-        }
-        return instance;
-    }
+	private Object lockObject = new Object();
 
-    /**
-     * delete document with given PID in index with given indexName.
-     * 
-     * @param indexName
-     *            name of index to open.
-     * @param config
-     *            gsearch config-Object.
-     * @param pid
-     *            PID to update.
-     * @param commit
-     *            wether to commit indexWriter or not.
-     * @throws GenericSearchException
-     *             e
-     */
-	public void delete(
-			final String indexName, 
-			final Config config, 
-			final String pid, 
-			final boolean commit)
+	/**
+	 * private Constructor for Singleton.
+	 * 
+	 */
+	private IndexWriterCache() {
+	}
+
+	/**
+	 * Only initialize Object once. Check for old objects in cache.
+	 * 
+	 * @return IndexWriterCache IndexWriterCache
+	 * 
+	 */
+	public static synchronized IndexWriterCache getInstance() {
+		if (instance == null) {
+			instance = new IndexWriterCache();
+		}
+		return instance;
+	}
+
+	/**
+	 * delete document with given PID in index with given indexName.
+	 * 
+	 * @param indexName
+	 *            name of index to open.
+	 * @param config
+	 *            gsearch config-Object.
+	 * @param pid
+	 *            PID to update.
+	 * @param commit
+	 *            wether to commit indexWriter or not.
+	 * @throws GenericSearchException
+	 *             e
+	 */
+	public void delete(final String indexName, final Config config,
+			final String pid, final boolean commit)
 			throws GenericSearchException {
-		try {
-        	getIndexWriter(indexName, false, config).deleteDocuments(new Term("PID", pid));
-		} catch (IOException e) {
-			throw new GenericSearchException(
-					"updateIndex deletePid error indexName="+indexName+" pid="+pid+"\n", e);
-		} finally {
-            if (commit) {
-                closeIndexWriter(indexName);
-            }
+		synchronized (lockObject) {
+			try {
+				getIndexWriter(indexName, false, config).deleteDocuments(
+						new Term("PID", pid));
+			} catch (IOException e) {
+				throw new GenericSearchException(
+						"updateIndex deletePid error indexName=" + indexName
+								+ " pid=" + pid + "\n", e);
+			} finally {
+				if (commit) {
+					closeIndexWriter(indexName);
+				}
+			}
 		}
 	}
 
-    /**
-     * update document with given PID in index with given indexName.
-     * 
-     * @param indexName
-     *            name of index to open.
-     * @param config
-     *            gsearch config-Object.
-     * @param pid
-     *            PID to update.
-     * @param doc
-     *            Update-Document.
-     * @param commit
-     *            wether to commit indexWriter or not.
-     * @throws GenericSearchException
-     *             e
-     */
-	public void update(
-			final String indexName, 
-			final Config config, 
-			final String pid, 
-			final Document doc, 
-			final boolean commit)
+	/**
+	 * update document with given PID in index with given indexName.
+	 * 
+	 * @param indexName
+	 *            name of index to open.
+	 * @param config
+	 *            gsearch config-Object.
+	 * @param pid
+	 *            PID to update.
+	 * @param doc
+	 *            Update-Document.
+	 * @param commit
+	 *            wether to commit indexWriter or not.
+	 * @throws GenericSearchException
+	 *             e
+	 */
+	public void update(final String indexName, final Config config,
+			final String pid, final Document doc, final boolean commit)
 			throws GenericSearchException {
-		try {
-        	getIndexWriter(indexName, false, config).updateDocument(new Term("PID", pid), doc);
-		} catch (IOException e) {
-			throw new GenericSearchException(e.getMessage());
-		} finally {
-            if (commit) {
-                closeIndexWriter(indexName);
-            }
+		synchronized (lockObject) {
+			try {
+				getIndexWriter(indexName, false, config).updateDocument(
+						new Term("PID", pid), doc);
+			} catch (IOException e) {
+				throw new GenericSearchException(e.getMessage());
+			} finally {
+				if (commit) {
+					closeIndexWriter(indexName);
+				}
+			}
 		}
 	}
 
-    /**
-     * optimize index for given indexName.
-     * 
-     * @param indexName
-     *            name of index to open.
-     * @param config
-     *            gsearch config-Object.
-     * @throws GenericSearchException
-     *             e
-     */
+	/**
+	 * optimize index for given indexName.
+	 * 
+	 * @param indexName
+	 *            name of index to open.
+	 * @param config
+	 *            gsearch config-Object.
+	 * @throws GenericSearchException
+	 *             e
+	 */
 	public void optimize(final String indexName, final Config config)
 			throws GenericSearchException {
-		try {
-			getIndexWriter(indexName, false, config).optimize();
-		} catch (IOException e) {
-			throw new GenericSearchException(
-					"updateIndex optimize error indexName="+indexName+"\n", e);
-		} finally {
-            closeIndexWriter(indexName);
+		synchronized (lockObject) {
+			try {
+				getIndexWriter(indexName, false, config).optimize();
+			} catch (IOException e) {
+				throw new GenericSearchException(
+						"updateIndex optimize error indexName=" + indexName
+								+ "\n", e);
+			} finally {
+				closeIndexWriter(indexName);
+			}
 		}
 	}
 
-    /**
-     * commit IndexWriter to persist to File.
-     * 
-     * @param indexName
-     *            name of index to open.
-     * @param config
-     *            gsearch config-Object.
-     * @throws GenericSearchException
-     *             e
-     */
+	/**
+	 * commit IndexWriter to persist to File.
+	 * 
+	 * @param indexName
+	 *            name of index to open.
+	 * @param config
+	 *            gsearch config-Object.
+	 * @throws GenericSearchException
+	 *             e
+	 */
 	public void commit(final String indexName, final Config config)
 			throws GenericSearchException {
-		try {
-			closeIndexWriter(indexName);
-		} catch (IOException e) {
-			throw new GenericSearchException(
-					"commit error indexName="+indexName+"\n", e);
+		synchronized (lockObject) {
+			try {
+				closeIndexWriter(indexName);
+			} catch (IOException e) {
+				throw new GenericSearchException("commit error indexName="
+						+ indexName + "\n", e);
+			}
 		}
 	}
 
-    /**
-     * create empty index for given indexName.
-     * 
-     * @param indexName
-     *            name of index to open.
-     * @param config
-     *            gsearch config-Object.
-     * @throws GenericSearchException
-     *             e
-     */
-	public void createEmpty(
-			final String indexName, final Config config)
+	/**
+	 * create empty index for given indexName.
+	 * 
+	 * @param indexName
+	 *            name of index to open.
+	 * @param config
+	 *            gsearch config-Object.
+	 * @throws GenericSearchException
+	 *             e
+	 */
+	public void createEmpty(final String indexName, final Config config)
 			throws GenericSearchException {
-        closeIndexWriter(indexName);
-        getIndexWriter(indexName, true, config);
-        closeIndexWriter(indexName);
+		closeIndexWriter(indexName);
+		getIndexWriter(indexName, true, config);
+		closeIndexWriter(indexName);
 	}
 
-    /**
-     * get IndexWriter for given indexPath and write it into
-     * cache.
-     * 
-     * @param indexName
-     *            name of index to open.
-     * @param config
-     *            gsearch config-Object.
-     * @throws GenericSearchException
-     *             e
-     */
-	private synchronized IndexWriter getIndexWriter(
-			final String indexName, final boolean create, final Config config) throws GenericSearchException {
+	/**
+	 * get IndexWriter for given indexPath and write it into cache.
+	 * 
+	 * @param indexName
+	 *            name of index to open.
+	 * @param config
+	 *            gsearch config-Object.
+	 * @throws GenericSearchException
+	 *             e
+	 */
+	private synchronized IndexWriter getIndexWriter(final String indexName,
+			final boolean create, final Config config)
+			throws GenericSearchException {
 		if (indexWriters.get(indexName) == null) {
-	        IndexWriter iw = null;
-            try {
-                IndexWriterConfig indexWriterConfig = new IndexWriterConfig(
-                        Constants.LUCENE_VERSION,
-                        getAnalyzer(config.getAnalyzer(indexName)));
-                 if (create) {
-                    indexWriterConfig.setOpenMode(OpenMode.CREATE);
-                } else {
-                    indexWriterConfig.setOpenMode(OpenMode.CREATE_OR_APPEND);
-                }
-                if (config.getMaxBufferedDocs(indexName) > 1) {
-                    indexWriterConfig.setMaxBufferedDocs(config
-                            .getMaxBufferedDocs(indexName));
-                } 
-                if (config.getRamBufferSize(indexName) 
-                		!= IndexWriterConfig.DEFAULT_RAM_BUFFER_SIZE_MB) {
-                    indexWriterConfig.setRAMBufferSizeMB(config
-                            .getRamBufferSize(indexName));
-                }
-				if (config.getMergeFactor(indexName) > 1 || config.getMaxMergeDocs(indexName) > 1 || config.getMaxMergeMb(indexName) > 1) {
+			IndexWriter iw = null;
+			try {
+				IndexWriterConfig indexWriterConfig = new IndexWriterConfig(
+						Constants.LUCENE_VERSION,
+						getAnalyzer(config.getAnalyzer(indexName)));
+				if (create) {
+					indexWriterConfig.setOpenMode(OpenMode.CREATE);
+				} else {
+					indexWriterConfig.setOpenMode(OpenMode.CREATE_OR_APPEND);
+				}
+				if (config.getMaxBufferedDocs(indexName) > 1) {
+					indexWriterConfig.setMaxBufferedDocs(config
+							.getMaxBufferedDocs(indexName));
+				}
+				if (config.getRamBufferSize(indexName) != IndexWriterConfig.DEFAULT_RAM_BUFFER_SIZE_MB) {
+					indexWriterConfig.setRAMBufferSizeMB(config
+							.getRamBufferSize(indexName));
+				}
+				if (config.getMergeFactor(indexName) > 1
+						|| config.getMaxMergeDocs(indexName) > 1
+						|| config.getMaxMergeMb(indexName) > 1) {
 					LogByteSizeMergePolicy logMergePolicy = new LogByteSizeMergePolicy();
 					if (config.getMergeFactor(indexName) > 1) {
 						logMergePolicy.setMergeFactor(config
@@ -262,73 +268,79 @@ public final class IndexWriterCache {
 					}
 					indexWriterConfig.setMergePolicy(logMergePolicy);
 				}
-                if (config.getDefaultWriteLockTimeout(indexName) > 1) {
-                    indexWriterConfig.setWriteLockTimeout(config
-                            .getDefaultWriteLockTimeout(indexName));
-                }
+				if (config.getDefaultWriteLockTimeout(indexName) > 1) {
+					indexWriterConfig.setWriteLockTimeout(config
+							.getDefaultWriteLockTimeout(indexName));
+				}
 				if (config.getLuceneDirectoryImplementation(indexName) != null) {
-					//Initialize IndexWriter with configured FSDirectory
-					FSDirectory directory = getDirectoryImplementation(config
-							.getLuceneDirectoryImplementation(indexName),
+					// Initialize IndexWriter with configured FSDirectory
+					FSDirectory directory = getDirectoryImplementation(
+							config.getLuceneDirectoryImplementation(indexName),
 							new File(config.getIndexDir(indexName)));
 					iw = new IndexWriter(directory, indexWriterConfig);
-				}
-				else {
-					//Initialize IndexWriter with default FSDirectory
+				} else {
+					// Initialize IndexWriter with default FSDirectory
 					iw = new IndexWriter(FSDirectory.open(new File(config
 							.getIndexDir(indexName))), indexWriterConfig);
 				}
 				if (config.getMaxChunkSize(indexName) > 1) {
-					if (iw.getDirectory() instanceof MMapDirectory){
-						((MMapDirectory)iw.getDirectory()).setMaxChunkSize(config
-								.getMaxChunkSize(indexName));
+					if (iw.getDirectory() instanceof MMapDirectory) {
+						((MMapDirectory) iw.getDirectory())
+								.setMaxChunkSize(config
+										.getMaxChunkSize(indexName));
 					}
 				}
-            } catch (Exception e) {
-            	iw = null;
-                throw new GenericSearchException("IndexWriter new error, creating index indexName=" + indexName+ " :\n", e);
-            }
-	        indexWriters.put(indexName, iw);
-	        return iw;
+			} catch (Exception e) {
+				iw = null;
+				throw new GenericSearchException(
+						"IndexWriter new error, creating index indexName="
+								+ indexName + " :\n", e);
+			}
+			indexWriters.put(indexName, iw);
+			if (logger.isDebugEnabled())
+				logger.debug("getIndexWriter put to map " + iw);
+			return iw;
 		}
 		return indexWriters.get(indexName);
 	}
 
-    /**
-     * close IndexWriter for given indexPath.
-     * 
-     * @param indexName
-     *            name of index to open.
-     * @throws GenericSearchException
-     *             e
-     */
-	private synchronized void closeIndexWriter(
-			final String indexName)
+	/**
+	 * close IndexWriter for given indexPath.
+	 * 
+	 * @param indexName
+	 *            name of index to open.
+	 * @throws GenericSearchException
+	 *             e
+	 */
+	private synchronized void closeIndexWriter(final String indexName)
 			throws GenericSearchException {
+		IndexWriter iw = null;
 		try {
-			if (indexWriters.get(indexName) != null) {
+			if ((iw = indexWriters.get(indexName)) != null) {
+				if (logger.isDebugEnabled())
+					logger.debug("closeIndexWriter got from map - try to close "
+							+ iw);
 				indexWriters.get(indexName).close();
 				indexWriters.put(indexName, null);
 			}
 		} catch (IOException e) {
-			IndexWriter iw = indexWriters.get(indexName);
+			iw = indexWriters.get(indexName);
 			iw = null;
 			indexWriters.put(indexName, null);
 			throw new GenericSearchException(e.getMessage());
 		}
 	}
 
-    /**
-     * commits changes in IndexWriter for given indexPath.
-     * 
-     * @param iw
-     *            IndexWriter to commit.
-     * @throws GenericSearchException
-     *             e
-     */
-	private synchronized void commitIndexWriter(
-			final String indexName, final Config config)
-			throws GenericSearchException {
+	/**
+	 * commits changes in IndexWriter for given indexPath.
+	 * 
+	 * @param iw
+	 *            IndexWriter to commit.
+	 * @throws GenericSearchException
+	 *             e
+	 */
+	private synchronized void commitIndexWriter(final String indexName,
+			final Config config) throws GenericSearchException {
 		try {
 			getIndexWriter(indexName, false, config).commit();
 		} catch (IOException e) {
@@ -337,67 +349,69 @@ public final class IndexWriterCache {
 		}
 	}
 
-    /**
-     * get Analyzer Object from ClassName.
-     * 
-     * @param analyzerClassName
-     *            name of Analyzer-class.
-     * @throws GenericSearchException
-     *             e
-     */
-    private Analyzer getAnalyzer(String analyzerClassName)
-    throws GenericSearchException {
-        Analyzer analyzer = null;
-        if (logger.isDebugEnabled())
-            logger.debug("analyzerClassName=" + analyzerClassName);
-        try {
-            Class analyzerClass = Class.forName(analyzerClassName);
-            if (logger.isDebugEnabled())
-                logger.debug("analyzerClass=" + analyzerClass.toString());
-            analyzer = (Analyzer) analyzerClass.getConstructor(new Class[] {})
-            .newInstance(new Object[] {});
-            if (logger.isDebugEnabled())
-                logger.debug("analyzer=" + analyzer.toString());
-        } catch (ClassNotFoundException e) {
-            throw new GenericSearchException(analyzerClassName
-                    + ": class not found.\n", e);
-        } catch (Exception e) {
-            throw new GenericSearchException(analyzerClassName
-                    + ": instantiation error.\n", e);
-        }
-        return analyzer;
-    }
-    
-    public FSDirectory getDirectoryImplementation(String dirImplClassName, File file)
-    throws GenericSearchException {
-        FSDirectory directory = null;
-        if (logger.isDebugEnabled())
-            logger.debug("directoryImplementationClassName=" + dirImplClassName);
-        try {
-            Class dirImplClass = Class.forName(dirImplClassName);
-            if (logger.isDebugEnabled())
-                logger.debug("directoryImplementationClass=" + dirImplClass.toString());
-            directory = (FSDirectory) dirImplClass.getConstructor(new Class[] {File.class})
-            .newInstance(new Object[] {file});
-            if (logger.isDebugEnabled())
-                logger.debug("directory=" + directory.toString());
-        } catch (ClassNotFoundException e) {
-            throw new GenericSearchException(dirImplClassName
-                    + ": class not found.\n", e);
-        } catch (InstantiationException e) {
-            throw new GenericSearchException(dirImplClassName
-                    + ": instantiation error.\n", e);
-        } catch (IllegalAccessException e) {
-            throw new GenericSearchException(dirImplClassName
-                    + ": instantiation error.\n", e);
-        } catch (InvocationTargetException e) {
-            throw new GenericSearchException(dirImplClassName
-                    + ": instantiation error.\n", e);
-        } catch (NoSuchMethodException e) {
-            throw new GenericSearchException(dirImplClassName
-                    + ": instantiation error.\n", e);
-        }
-        return directory;
-    }
-    
+	/**
+	 * get Analyzer Object from ClassName.
+	 * 
+	 * @param analyzerClassName
+	 *            name of Analyzer-class.
+	 * @throws GenericSearchException
+	 *             e
+	 */
+	private Analyzer getAnalyzer(String analyzerClassName)
+			throws GenericSearchException {
+		Analyzer analyzer = null;
+		if (logger.isDebugEnabled())
+			logger.debug("analyzerClassName=" + analyzerClassName);
+		try {
+			Class analyzerClass = Class.forName(analyzerClassName);
+			if (logger.isDebugEnabled())
+				logger.debug("analyzerClass=" + analyzerClass.toString());
+			analyzer = (Analyzer) analyzerClass.getConstructor(new Class[] {})
+					.newInstance(new Object[] {});
+			if (logger.isDebugEnabled())
+				logger.debug("analyzer=" + analyzer.toString());
+		} catch (ClassNotFoundException e) {
+			throw new GenericSearchException(analyzerClassName
+					+ ": class not found.\n", e);
+		} catch (Exception e) {
+			throw new GenericSearchException(analyzerClassName
+					+ ": instantiation error.\n", e);
+		}
+		return analyzer;
+	}
+
+	public FSDirectory getDirectoryImplementation(String dirImplClassName,
+			File file) throws GenericSearchException {
+		FSDirectory directory = null;
+		if (logger.isDebugEnabled())
+			logger.debug("directoryImplementationClassName=" + dirImplClassName);
+		try {
+			Class dirImplClass = Class.forName(dirImplClassName);
+			if (logger.isDebugEnabled())
+				logger.debug("directoryImplementationClass="
+						+ dirImplClass.toString());
+			directory = (FSDirectory) dirImplClass.getConstructor(
+					new Class[] { File.class }).newInstance(
+					new Object[] { file });
+			if (logger.isDebugEnabled())
+				logger.debug("directory=" + directory.toString());
+		} catch (ClassNotFoundException e) {
+			throw new GenericSearchException(dirImplClassName
+					+ ": class not found.\n", e);
+		} catch (InstantiationException e) {
+			throw new GenericSearchException(dirImplClassName
+					+ ": instantiation error.\n", e);
+		} catch (IllegalAccessException e) {
+			throw new GenericSearchException(dirImplClassName
+					+ ": instantiation error.\n", e);
+		} catch (InvocationTargetException e) {
+			throw new GenericSearchException(dirImplClassName
+					+ ": instantiation error.\n", e);
+		} catch (NoSuchMethodException e) {
+			throw new GenericSearchException(dirImplClassName
+					+ ": instantiation error.\n", e);
+		}
+		return directory;
+	}
+
 }
