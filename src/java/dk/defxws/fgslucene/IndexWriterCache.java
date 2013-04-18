@@ -34,6 +34,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
@@ -43,7 +44,6 @@ import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
-import org.apache.log4j.Logger;
 
 import de.escidoc.sb.common.Constants;
 import dk.defxws.fedoragsearch.server.Config;
@@ -108,15 +108,13 @@ public final class IndexWriterCache {
 			try {
 				getIndexWriter(indexName, false, config).deleteDocuments(
 						new Term("PID", pid));
-			} catch (IOException e) {
+				commitIndexWriter(indexName, config);
+			} catch (Throwable e) {
+			    closeIndexWriter(indexName);
 				throw new GenericSearchException(
 						"updateIndex deletePid error indexName=" + indexName
 								+ " pid=" + pid + "\n", e);
-			} finally {
-				if (commit) {
-					closeIndexWriter(indexName);
-				}
-			}
+			} 
 		}
 	}
 
@@ -143,13 +141,14 @@ public final class IndexWriterCache {
 			try {
 				getIndexWriter(indexName, false, config).updateDocument(
 						new Term("PID", pid), doc);
-			} catch (IOException e) {
-				throw new GenericSearchException(e.getMessage());
-			} finally {
-				if (commit) {
-					closeIndexWriter(indexName);
-				}
-			}
+				commitIndexWriter(indexName, config);
+				
+			} catch (Throwable e) {
+                closeIndexWriter(indexName);
+                throw new GenericSearchException(
+                        "updateIndex error indexName=" + indexName
+                                + " pid=" + pid + "\n", e);
+            } 
 		}
 	}
 
@@ -168,13 +167,12 @@ public final class IndexWriterCache {
 		synchronized (lockObject) {
 			try {
 				getIndexWriter(indexName, false, config).optimize();
-			} catch (IOException e) {
-				throw new GenericSearchException(
-						"updateIndex optimize error indexName=" + indexName
-								+ "\n", e);
-			} finally {
-				closeIndexWriter(indexName);
-			}
+				commitIndexWriter(indexName, config);
+			} catch (Throwable e) {
+                closeIndexWriter(indexName);
+                throw new GenericSearchException(
+                        "updateIndex optimize error indexName=" + indexName, e);                              
+            } 
 		}
 	}
 
@@ -212,9 +210,12 @@ public final class IndexWriterCache {
 	 */
 	public void createEmpty(final String indexName, final Config config)
 			throws GenericSearchException {
-		closeIndexWriter(indexName);
-		getIndexWriter(indexName, true, config);
-		closeIndexWriter(indexName);
+        synchronized (lockObject)
+        {
+            closeIndexWriter(indexName);
+            getIndexWriter(indexName, true, config);
+            closeIndexWriter(indexName);
+        }
 	}
 
 	/**
@@ -227,7 +228,7 @@ public final class IndexWriterCache {
 	 * @throws GenericSearchException
 	 *             e
 	 */
-	private synchronized IndexWriter getIndexWriter(final String indexName,
+	private IndexWriter getIndexWriter(final String indexName,
 			final boolean create, final Config config)
 			throws GenericSearchException {
 		if (indexWriters.get(indexName) == null) {
@@ -241,16 +242,15 @@ public final class IndexWriterCache {
 				} else {
 					indexWriterConfig.setOpenMode(OpenMode.CREATE_OR_APPEND);
 				}
-				if (config.getMaxBufferedDocs(indexName) > 1) {
-					indexWriterConfig.setMaxBufferedDocs(config
-							.getMaxBufferedDocs(indexName));
-				}
-				/*
-				 * if (config.getRamBufferSize(indexName) !=
-				 * IndexWriterConfig.DEFAULT_RAM_BUFFER_SIZE_MB) {
-				 * indexWriterConfig.setRAMBufferSizeMB(config
-				 * .getRamBufferSize(indexName)); }
-				 */
+                if (config.getMaxBufferedDocs(indexName) > 1)
+                {
+                    indexWriterConfig.setMaxBufferedDocs(config.getMaxBufferedDocs(indexName));
+                }
+                if (config.getRamBufferSizeMb(indexName) > 1)
+                {
+                    indexWriterConfig.setRAMBufferSizeMB(config.getRamBufferSizeMb(indexName));
+                }
+			
 				if (config.getMergeFactor(indexName) > 1
 						|| config.getMaxMergeDocs(indexName) > 1
 						|| config.getMaxMergeMb(indexName) > 1) {
@@ -313,7 +313,7 @@ public final class IndexWriterCache {
 	 * @throws GenericSearchException
 	 *             e
 	 */
-	private synchronized void closeIndexWriter(final String indexName)
+	private void closeIndexWriter(final String indexName)
 			throws GenericSearchException {
 		IndexWriter iw = null;
 		try {
@@ -340,14 +340,16 @@ public final class IndexWriterCache {
 	 * @throws GenericSearchException
 	 *             e
 	 */
-	private synchronized void commitIndexWriter(final String indexName,
+	private void commitIndexWriter(final String indexName,
 			final Config config) throws GenericSearchException {
-		try {
+	    try {
 			getIndexWriter(indexName, false, config).commit();
-		} catch (IOException e) {
-			closeIndexWriter(indexName);
-			throw new GenericSearchException(e.getMessage());
-		}
+		} catch (Throwable e) {
+            closeIndexWriter(indexName);
+            throw new GenericSearchException(
+                    "commitIndexWriter error indexName=" + indexName, e);
+
+	    }
 	}
 
 	/**
