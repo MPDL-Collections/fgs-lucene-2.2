@@ -31,10 +31,10 @@ package dk.defxws.fgslucene;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.log4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
@@ -44,10 +44,10 @@ import org.apache.lucene.index.LogByteSizeMergePolicy;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.MMapDirectory;
-import org.apache.log4j.Logger;
 
 import de.escidoc.sb.common.Constants;
 import dk.defxws.fedoragsearch.server.Config;
+import dk.defxws.fedoragsearch.server.Config.IndexMode;
 import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
 
 /**
@@ -87,7 +87,7 @@ public final class IndexWriterCache {
 		}
 		return instance;
 	}
-
+	
 	/**
 	 * delete document with given PID in index with given indexName.
 	 * 
@@ -141,9 +141,8 @@ public final class IndexWriterCache {
 		synchronized (lockObject) {
 			try {
 				getIndexWriter(indexName, false, config).updateDocument(
-						new Term("PID", pid), doc);
-				commitIndexWriter(indexName, config);
-				
+						new Term("PID", pid), doc);				
+				commitIndexWriter(indexName, config);				
 			} catch (Throwable e) {
                 closeIndexWriter(indexName);
                 throw new GenericSearchException(
@@ -187,6 +186,7 @@ public final class IndexWriterCache {
 	 * @throws GenericSearchException
 	 *             e
 	 */
+	/**
 	public void commit(final String indexName, final Config config)
 			throws GenericSearchException {
 		synchronized (lockObject) {
@@ -198,6 +198,7 @@ public final class IndexWriterCache {
 			}
 		}
 	}
+	*/
 
 	/**
 	 * create empty index for given indexName.
@@ -237,7 +238,7 @@ public final class IndexWriterCache {
 			try {
 				IndexWriterConfig indexWriterConfig = new IndexWriterConfig(
 						Constants.LUCENE_VERSION,
-						getAnalyzer(config.getAnalyzer(indexName)));
+						config.getAnalyzerForIndex(indexName));
 				if (create) {
 					indexWriterConfig.setOpenMode(OpenMode.CREATE);
 				} else {
@@ -246,27 +247,37 @@ public final class IndexWriterCache {
                 if (config.getMaxBufferedDocs(indexName) > 1)
                 {
                     indexWriterConfig.setMaxBufferedDocs(config.getMaxBufferedDocs(indexName));
+                    logger.info(indexName + ": IndexWriter setMaxBufferedDocs " +  config.getMaxBufferedDocs(indexName));
                 }
                 if (config.getRamBufferSizeMb(indexName) > 1)
                 {
-                    indexWriterConfig.setRAMBufferSizeMB(config.getRamBufferSizeMb(indexName));
+                    indexWriterConfig.setRAMBufferSizeMB((double)config.getRamBufferSizeMb(indexName));
+                    logger.info(indexName + ": IndexWriter setRAMBufferSizeMB " +  (double)config.getRamBufferSizeMb(indexName));
                 }
 			
 				if (config.getMergeFactor(indexName) > 1
 						|| config.getMaxMergeDocs(indexName) > 1
-						|| config.getMaxMergeMb(indexName) > 1) {
+						|| config.getMaxMergeMb(indexName) > 1
+						|| config.getRamBufferSizeMb(indexName) > 1) {
 					LogByteSizeMergePolicy logMergePolicy = new LogByteSizeMergePolicy();
 					if (config.getMergeFactor(indexName) > 1) {
 						logMergePolicy.setMergeFactor(config
 								.getMergeFactor(indexName));
+						logger.info(indexName + ": LogByteSizeMergePolicy setMergeFactor " + config.getMergeFactor(indexName));
 					}
 					if (config.getMaxMergeDocs(indexName) > 1) {
 						logMergePolicy.setMaxMergeDocs(config
 								.getMaxMergeDocs(indexName));
+						logger.info(indexName + ": LogByteSizeMergePolicy setMaxMergeDocs " + config.getMaxMergeDocs(indexName));
 					}
 					if (config.getMaxMergeMb(indexName) > 1) {
 						logMergePolicy.setMaxMergeMB(config
 								.getMaxMergeMb(indexName));
+						logger.info(indexName + ": LogByteSizeMergePolicy setMaxMergeMB " + config.getMaxMergeMb(indexName));
+					}
+					if (config.getRamBufferSizeMb(indexName) > 1) {
+						logMergePolicy.setUseCompoundFile(false);
+						logger.info(indexName + ": LogByteSizeMergePolicy setUseCompoundFile false");
 					}
 					indexWriterConfig.setMergePolicy(logMergePolicy);
 				}
@@ -361,7 +372,7 @@ public final class IndexWriterCache {
 	 * @throws GenericSearchException
 	 *             e
 	 */
-	private Analyzer getAnalyzer(String analyzerClassName)
+	/*private Analyzer getAnalyzer(String analyzerClassName)
 			throws GenericSearchException {
 		Analyzer analyzer = null;
 		if (logger.isDebugEnabled())
@@ -382,7 +393,7 @@ public final class IndexWriterCache {
 					+ ": instantiation error.\n", e);
 		}
 		return analyzer;
-	}
+	}*/
 
 	public FSDirectory getDirectoryImplementation(String dirImplClassName,
 			File file) throws GenericSearchException {
