@@ -155,6 +155,9 @@ public class OperationsImpl extends GenericOperationsImpl {
         				else
         					if ("optimize".equals(action)) 
                 				optimize(indexName, resultXml);
+        					else
+        						if ("commit".equals(action))
+        							commit(indexName, resultXml);
         			}
         		}
         	}
@@ -196,8 +199,8 @@ public class OperationsImpl extends GenericOperationsImpl {
                 params);
         return sb.toString();
     }
-    
-    private void createEmpty(
+
+	private void createEmpty(
             String indexName,
             StringBuffer resultXml)
     throws java.rmi.RemoteException {
@@ -221,6 +224,15 @@ public class OperationsImpl extends GenericOperationsImpl {
         resultXml.append("<optimize/>\n");
     }
     
+    private void commit(
+    		String indexName, 
+    		StringBuffer resultXml)
+    throws java.rmi.RemoteException {
+    	IndexWriterCache.getInstance().commit(indexName, config);
+        resultXml.append("<commit/>\n");
+		
+	}
+  
     private void fromFoxmlFiles(
             String filePath,
             String repositoryName,

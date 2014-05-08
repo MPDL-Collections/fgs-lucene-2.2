@@ -109,7 +109,10 @@ public final class IndexWriterCache {
 			try {
 				getIndexWriter(indexName, false, config).deleteDocuments(
 						new Term("PID", pid));
-				commitIndexWriter(indexName, config);
+				if (config.getRamBufferSizeMb(indexName) == 1)  // means not set
+                {
+					commitIndexWriter(indexName, config);
+                }
 			} catch (Throwable e) {
 			    closeIndexWriter(indexName);
 				throw new GenericSearchException(
@@ -141,8 +144,11 @@ public final class IndexWriterCache {
 		synchronized (lockObject) {
 			try {
 				getIndexWriter(indexName, false, config).updateDocument(
-						new Term("PID", pid), doc);				
-				commitIndexWriter(indexName, config);				
+						new Term("PID", pid), doc);	
+				if (config.getRamBufferSizeMb(indexName) == 1)	  // means not set
+                {
+					commitIndexWriter(indexName, config);	
+                }
 			} catch (Throwable e) {
                 closeIndexWriter(indexName);
                 throw new GenericSearchException(
@@ -186,19 +192,18 @@ public final class IndexWriterCache {
 	 * @throws GenericSearchException
 	 *             e
 	 */
-	/**
+
 	public void commit(final String indexName, final Config config)
 			throws GenericSearchException {
 		synchronized (lockObject) {
 			try {
-				closeIndexWriter(indexName);
+				commitIndexWriter(indexName, config);
 			} catch (IOException e) {
 				throw new GenericSearchException("commit error indexName="
 						+ indexName + "\n", e);
 			}
 		}
 	}
-	*/
 
 	/**
 	 * create empty index for given indexName.
