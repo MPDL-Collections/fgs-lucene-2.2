@@ -30,6 +30,7 @@ package dk.defxws.fgslucene;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
@@ -67,6 +68,8 @@ public final class IndexWriterCache {
 	private Map<String, IndexWriter> indexWriters = new HashMap<String, IndexWriter>();
 
 	private Object lockObject = new Object();
+	
+	private boolean ramBufferSizeSet = false;
 
 	/**
 	 * private Constructor for Singleton.
@@ -145,7 +148,7 @@ public final class IndexWriterCache {
 			try {
 				getIndexWriter(indexName, false, config).updateDocument(
 						new Term("PID", pid), doc);	
-				if (config.getRamBufferSizeMb(indexName) == 1)	  // means not set
+				if (!ramBufferSizeSet)	  // means not set
                 {
 					commitIndexWriter(indexName, config);	
                 }
@@ -256,6 +259,7 @@ public final class IndexWriterCache {
                 }
                 if (config.getRamBufferSizeMb(indexName) > 1)
                 {
+                	ramBufferSizeSet = true;
                     indexWriterConfig.setRAMBufferSizeMB((double)config.getRamBufferSizeMb(indexName));
                     logger.info(indexName + ": IndexWriter setRAMBufferSizeMB " +  (double)config.getRamBufferSizeMb(indexName));
                 }
@@ -301,6 +305,7 @@ public final class IndexWriterCache {
 					iw = new IndexWriter(FSDirectory.open(new File(config
 							.getIndexDir(indexName))), indexWriterConfig);
 				}
+//				iw.setInfoStream(new PrintStream(new File("./indexWriter.log")));
 				if (config.getMaxChunkSize(indexName) > 1) {
 					if (iw.getDirectory() instanceof MMapDirectory) {
 						((MMapDirectory) iw.getDirectory())
