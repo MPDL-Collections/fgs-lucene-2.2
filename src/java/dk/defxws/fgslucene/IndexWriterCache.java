@@ -30,13 +30,11 @@ package dk.defxws.fgslucene;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
-import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -48,7 +46,6 @@ import org.apache.lucene.store.MMapDirectory;
 
 import de.escidoc.sb.common.Constants;
 import dk.defxws.fedoragsearch.server.Config;
-import dk.defxws.fedoragsearch.server.Config.IndexMode;
 import dk.defxws.fedoragsearch.server.errors.GenericSearchException;
 
 /**
@@ -108,7 +105,7 @@ public final class IndexWriterCache {
 	public void delete(final String indexName, final Config config,
 			final String pid, final boolean commit)
 			throws GenericSearchException {
-		synchronized (lockObject) {
+//		synchronized (lockObject) {
 			try {
 				getIndexWriter(indexName, false, config).deleteDocuments(
 						new Term("PID", pid));
@@ -122,7 +119,7 @@ public final class IndexWriterCache {
 						"updateIndex deletePid error indexName=" + indexName
 								+ " pid=" + pid + "\n", e);
 			} 
-		}
+//		}
 	}
 
 	/**
@@ -144,7 +141,7 @@ public final class IndexWriterCache {
 	public void update(final String indexName, final Config config,
 			final String pid, final Document doc, final boolean commit)
 			throws GenericSearchException {
-		synchronized (lockObject) {
+//		synchronized (lockObject) {
 			try {
 				getIndexWriter(indexName, false, config).updateDocument(
 						new Term("PID", pid), doc);	
@@ -158,7 +155,7 @@ public final class IndexWriterCache {
                         "updateIndex error indexName=" + indexName
                                 + " pid=" + pid + "\n", e);
             } 
-		}
+//		}
 	}
 
 	/**
@@ -173,7 +170,7 @@ public final class IndexWriterCache {
 	 */
 	public void optimize(final String indexName, final Config config)
 			throws GenericSearchException {
-		synchronized (lockObject) {
+//		synchronized (lockObject) {
 			try {
 				getIndexWriter(indexName, false, config).optimize();
 				commitIndexWriter(indexName, config);
@@ -182,7 +179,7 @@ public final class IndexWriterCache {
                 throw new GenericSearchException(
                         "updateIndex optimize error indexName=" + indexName, e);                              
             } 
-		}
+//		}
 	}
 
 	/**
@@ -198,13 +195,13 @@ public final class IndexWriterCache {
 
 	public void commit(final String indexName, final Config config)
 			throws GenericSearchException {
-		synchronized (lockObject) {
+//		synchronized (lockObject) {
 			try {
 				commitIndexWriter(indexName, config);
 			} catch (IOException e) {
 				throw new GenericSearchException("commit error indexName="
 						+ indexName + "\n", e);
-			}
+//			}
 		}
 	}
 
