@@ -141,7 +141,7 @@ public final class IndexWriterCache {
 	public void update(final String indexName, final Config config,
 			final String pid, final Document doc, final boolean commit)
 			throws GenericSearchException {
-//		synchronized (lockObject) {
+
 			try {
 				getIndexWriter(indexName, false, config).updateDocument(
 						new Term("PID", pid), doc);	
@@ -155,7 +155,6 @@ public final class IndexWriterCache {
                         "updateIndex error indexName=" + indexName
                                 + " pid=" + pid + "\n", e);
             } 
-//		}
 	}
 
 	/**
@@ -170,7 +169,7 @@ public final class IndexWriterCache {
 	 */
 	public void optimize(final String indexName, final Config config)
 			throws GenericSearchException {
-//		synchronized (lockObject) {
+
 			try {
 				getIndexWriter(indexName, false, config).optimize();
 				commitIndexWriter(indexName, config);
@@ -179,7 +178,6 @@ public final class IndexWriterCache {
                 throw new GenericSearchException(
                         "updateIndex optimize error indexName=" + indexName, e);                              
             } 
-//		}
 	}
 
 	/**
