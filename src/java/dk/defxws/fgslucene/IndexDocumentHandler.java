@@ -196,7 +196,11 @@ public class IndexDocumentHandler extends DefaultHandler {
 			}
 			if (ebs.length() > 0) {
 				if (logger.isDebugEnabled())
-					logger.debug(fieldName + "=" + ebs);
+					logger.debug("fieldName <" + fieldName + "> " 
+							+ "content <" + ebs + "> "
+							+ "storeField <" + store + "> " 
+							+ "index <" + index + "> "
+							+ "termVector <" + termVector + "> ");
 				Field f = new Field(fieldName, ebs, store, index, termVector);
 				if (boost > Float.MIN_VALUE)
 					f.setBoost(boost);
